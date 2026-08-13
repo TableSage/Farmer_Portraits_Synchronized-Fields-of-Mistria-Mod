@@ -1,0 +1,6 @@
+# The tool is a single HTML file people open, edit and re-download on Windows
+# and elsewhere; normalise line endings so a clone never shows up as one giant
+# rewritten file. GML is checked in as-is for the same reason.
+* text=auto eol=lf
+*.png binary
+*.zip binary
