@@ -65,8 +65,11 @@ class El {
   getContext(){
     const self = this;
     return {
-      drawImage(){},
-      getImageData(){ return srcData; },
+      // A canvas that has been drawn into reads back what was put there; a
+      // fresh one reads the fixture. That is what lets toNative() and finish()
+      // be driven back to back the way the page drives them.
+      drawImage(src){ if (src && src.__out) self.__out = src.__out; },
+      getImageData(){ return self.__out || srcData; },
       createImageData(w,h){
         return {width:w, height:h, data:new Uint8ClampedArray(w*h*4)};
       },
@@ -74,12 +77,26 @@ class El {
     };
   }
   toBlob(cb){ cb(new Blob([new Uint8Array([137,80,78,71,13,10,26,10])])); }
+  toDataURL(){ return 'data:image/png;base64,AAAA'; }
 }
 
 const byId = new Map();
 for (const id of ['grid','flip','export','status','afterExport','picker',
-                  'slotHead','cards','addCard','wrap'])
+                  'slotHead','cards','addCard','wrap','reset'])
   byId.set(id, new El('div'));
+
+// Enough of a localStorage to prove the round trip, and a switch to make it
+// throw the way a full or locked-down browser does.
+const store = new Map();
+let storageBroken = false;
+globalThis.localStorage = {
+  getItem: k => (storageBroken ? (() => { throw new Error('denied'); })() :
+                 store.has(k) ? store.get(k) : null),
+  setItem: (k,v) => { if (storageBroken) throw new Error('quota'); store.set(k, v); },
+  removeItem: k => store.delete(k),
+};
+let confirmAnswer = true;
+globalThis.confirm = () => confirmAnswer;
 
 globalThis.document = {
   getElementById: id => byId.get(id) || new El('div'),
@@ -91,6 +108,7 @@ globalThis.Option = function(label, value){
 };
 globalThis.Image = class {
   set src(v){ this._src = v; if (this.onload) this.onload(); }
+  get src(){ return this._src; }
 };
 globalThis.URL.createObjectURL = () => 'blob:fake';
 globalThis.URL.revokeObjectURL = () => {};
@@ -99,9 +117,10 @@ globalThis.URL.revokeObjectURL = () => {};
 
 const T = {};
 new Function('__T', script + `
-  Object.assign(__T, {makeZip, crc32, processImage, buildFiles, statusOf, tagOf,
-    validate, everyCard, slots, cells, render, select, buildCards, acceptFiles,
-    PATTERNS, TARGET_H, $});
+  Object.assign(__T, {makeZip, crc32, processImage, toNative, finish, buildFiles,
+    statusOf, tagOf, validate, advisories, presetsNeeded, everyCard, slots, cells,
+    render, select, buildCards, acceptFiles, loadInto, restoreState, saveState,
+    STORE, PATTERNS, TARGET_H, $});
 `)(T);
 
 let fails = 0;
@@ -259,7 +278,7 @@ ok('the old one was cleared', T.slots[0].cards[0].isDefault === false);
    so every card lands on a distinct season_weather pair. */
 const SEA = ['spring','summer','fall','winter'], WEA = ['sunny','rain','thunder'];
 T.everyCard().forEach(({card}, i) => {
-  card.file = {name:`p${i}.png`};
+  card.name = `p${i}.png`; card.url = 'data:image/png;base64,AAAA'; card.img = {};
   if (!card.isDefault){
     card.season = SEA[i % 4];
     card.weather = WEA[Math.floor(i / 4) % 3];
@@ -294,7 +313,7 @@ ok('notice clears on the next drop',
 /* each problem is its own line, so a long list stays scannable */
 const wasDefault = T.slots[2].cards[0].isDefault;
 T.slots[2].cards[0].isDefault = false;
-T.slots[1].cards[0].file = null;
+T.slots[1].cards[0].url = '';
 T.render();
 // Un-defaulting a card also strips its trigger, so this raises three problems:
 // missing image, invalid trigger, and no default anywhere.
@@ -302,7 +321,7 @@ ok('problems are one per line',
    (T.$('status').innerHTML.match(/class="line bad"/g) || []).length === 3,
    JSON.stringify(T.$('status').innerHTML));
 T.slots[2].cards[0].isDefault = wasDefault;
-T.slots[1].cards[0].file = {name:'p1.png'};
+T.slots[1].cards[0].url = 'data:image/png;base64,AAAA';
 T.render();
 ok('the ready line is a single line',
    (T.$('status').innerHTML.match(/class="line ok"/g) || []).length === 1);
@@ -381,16 +400,41 @@ ok('shared slots appear once per tag, not once per slot',
 ok('registers a tick and declares itself',
    gml.includes('mmapi_register(sage_fps_tick)') &&
    gml.includes('mmapi_mod_declare(SAGE_FPS_ID'));
-// The rising-edge rule is the whole contract: act when a textbox appears, and
-// never between conversations, or the mod fights the player's own wardrobe edits.
-ok('acts only on the rising edge of a textbox',
+// Two triggers, and both matter. The context edge is what makes the clothes
+// change when you walk indoors rather than waiting for someone to talk to you;
+// the textbox edge is what keeps them agreeing with the portrait once one is on
+// screen. Between the two, manual preset cycling is left alone.
+ok('re-dresses on a context change, not only in dialogue',
+   gml.includes('__sage_fps_context_changed(_rt)') &&
+   gml.includes('_rt.pending = true;'));
+ok('re-dresses again when a conversation opens',
    gml.includes('ANCHOR.get_menu(Menu.Textbox)') &&
-   gml.includes('if (_rt.menu == _menu) return;') &&
-   gml.includes('_rt.menu = undefined;'));
-ok('skips cutscenes', gml.includes('deulo_farmer_portraits_cutscene_name() != undefined'));
+   gml.includes('__sage_fps_dialogue_started(_rt)'));
+// The fingerprint has to cover every field the context struct reads, or a
+// trigger silently stops firing. inout is derived from the location.
+for (const probe of ['CALENDAR.season()', 'CALENDAR.day_type()', 'CALENDAR.day()',
+                     'WEATHER[$ "weather"]', 'CURRENT_LOCATION_ID'])
+  ok(`fingerprint covers ${probe}`, gml.includes(probe));
+// Nineteen string concatenations per frame is the thing being avoided: the key
+// walk lives in __sage_fps_apply, and the tick only reaches it once something
+// actually changed.
+const tickBody = gml.match(/function sage_fps_tick\(\)[\s\S]*?\n\}/)[0];
+ok('the key walk is gated behind the fingerprint',
+   tickBody.indexOf('if (!_rt.pending) return;') < tickBody.indexOf('__sage_fps_apply(_rt)')
+   && !tickBody.includes('deulo_farmer_portraits_keys'));
+ok('defers instead of dropping the change when the moment is unsafe',
+   gml.includes('if (!__sage_fps_safe()) return;'));
+ok('never swaps mid-cutscene, mid-sleep, or inside the wardrobe menu',
+   gml.includes('MIST.is_running()') &&
+   gml.includes('ARI[$ "end_of_day_status"] != undefined') &&
+   gml.includes('ANCHOR.get_menu(Menu.Customization)'));
+// A new farmer has ONE preset and presets can be deleted, so a mapped slot may
+// not exist. Leaving the outfit alone is right; doing it silently is not.
 ok('guards the preset count and no-ops when already correct',
    gml.includes('_slot >= _count') &&
    gml.includes('ARI.preset_index_selected == _slot'));
+ok('reports a slot the player has not built yet',
+   gml.includes('mmapi_log_warn(SAGE_FPS_ID') && gml.includes('_rt.warned'));
 ok('walks the mod\'s own key list, not a private copy',
    gml.includes('deulo_farmer_portraits_keys(deulo_farmer_portraits_context())'));
 ok('uses the game\'s own preset API',
@@ -431,6 +475,69 @@ const blob = T.makeZip(files);
 fs.writeFileSync(new URL('./test_zip.zip', import.meta.url),
   Buffer.from(await blob.arrayBuffer()));
 ok('zip written', fs.statSync(new URL('./test_zip.zip', import.meta.url)).size > 0);
+
+/* 9. persistence — half an hour of work must survive a reload */
+console.log('\nsaved work');
+ok('render saves', store.has(T.STORE));
+const saved = JSON.parse(store.get(T.STORE));
+ok('saved shape is versioned', saved.v === 1 && saved.slots.length === 8);
+ok('triggers are saved',
+   saved.slots[0].cards[0].season === T.slots[0].cards[0].season);
+ok('the image is saved as a data url, not a blob url',
+   saved.slots[0].cards[0].url.startsWith('data:'),
+   saved.slots[0].cards[0].url.slice(0, 20));
+// The whole point of storing native pixels: a Picrew original is tens of KB and
+// eight of them would blow the ~5MB localStorage budget.
+ok('a stacked slot saves every card',
+   saved.slots[0].cards.length === T.slots[0].cards.length);
+
+const before = JSON.stringify(T.slots.map(s => s.cards.map(c => c.season)));
+T.slots[0].cards[0].season = 'spring';
+T.slots[3].cards = [{...T.slots[3].cards[0]}];
+T.restoreState();
+ok('restore brings the board back',
+   JSON.stringify(T.slots.map(s => s.cards.map(c => c.season))) === before);
+ok('restored cards decode into images', T.everyCard().every(x => !!x.card.img));
+ok('restore rejects a foreign payload', (() => {
+  store.set(T.STORE, JSON.stringify({v:99, slots:[]}));
+  const kept = T.slots[0].cards[0].season;
+  T.restoreState();
+  store.set(T.STORE, saved && JSON.stringify(saved));
+  return T.slots[0].cards[0].season === kept;
+})());
+ok('restore survives junk', (() => {
+  store.set(T.STORE, '{not json');
+  T.restoreState();
+  store.set(T.STORE, JSON.stringify(saved));
+  return true;
+})());
+
+storageBroken = true;
+T.render();
+ok('a browser that refuses storage says so instead of failing quietly',
+   T.$('status').innerHTML.includes('not being saved'));
+storageBroken = false;
+T.render();
+
+/* 10. slot numbering advice — the fresh-farmer trap */
+console.log('\npreset advice');
+ok('needs as many presets as the highest slot used', T.presetsNeeded() === 8);
+const stash = T.slots.map(s => s.cards);
+T.slots.forEach((s, i) => { if (i > 0 && i < 7) s.cards = [Object.assign({}, s.cards[0],
+  {season:'', weather:'', kind:'', value:'', isDefault:false})]; });
+ok('a gap below the highest slot is called out',
+   T.advisories().some(m => m.includes('unused')), JSON.stringify(T.advisories()));
+T.slots.forEach((s, i) => { s.cards = stash[i]; });
+T.render();
+ok('no advice once the slots are contiguous', T.advisories().length === 0,
+   JSON.stringify(T.advisories()));
+
+/* start over has to actually empty the board, or saved work is a trap */
+T.$('reset').onclick();
+ok('reset empties every slot',
+   T.everyCard().length === 8 && T.everyCard().every(x => !x.card.url));
+ok('reset clears the saved copy too', !store.has(T.STORE) ||
+   JSON.parse(store.get(T.STORE)).slots.every(s => s.cards.every(c => !c.url)));
 
 console.log(fails ? `\n${fails} FAILED\n` : '\nall passed\n');
 process.exit(fails ? 1 : 0);

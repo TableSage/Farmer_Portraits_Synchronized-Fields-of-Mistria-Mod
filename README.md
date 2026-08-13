@@ -22,6 +22,12 @@ Read it before changing anything here.
 
 Open `portrait_tool.html` in any browser. No install, no server, no network.
 
+Your work is saved in the browser as you go, so closing the tab or reloading
+costs nothing. **Start over** in the top card is the way back to an empty board.
+What gets saved is the *downsampled* art — a few KB per portrait rather than the
+tens of KB a Picrew export weighs — which is the only reason eight portraits fit
+in browser storage at all.
+
 1. Drag PNGs onto the grid — a drop on the background spreads across empty
    slots, a drop on one tile fills that slot and adds cards for the extras
 2. Per portrait, build the trigger: season / weather / then one more condition.
@@ -99,10 +105,14 @@ supply `spr_farmer_portrait_*`. Keep the manifest as DeUlo wrote it.
 
 ## What it does to the images
 
-All of it runs in the browser, on canvas pixel data:
+All of it runs in the browser, on canvas pixel data. The first step runs the
+moment a file lands, the rest at export:
 
 - detect the nearest-neighbour upscale factor (Picrew exports 540×960 = 6× of
-  90×160) and take one pixel per block
+  90×160) and take one pixel per block. Detection is deliberately a separate
+  function from the rest and runs **once per upload** — feeding an
+  already-native image back through it could in principle read it as an upscale
+  of something smaller
 - mirror horizontally — Picrew faces right, the farmer sits on the right of the
   dialogue box and must face inwards. The mod's own "Face right" toggle reads
   backwards relative to this; leave it off
@@ -125,9 +135,9 @@ node test_tool.mjs
 ```
 
 It runs the page against a small DOM shim and covers the grid, the tag rules,
-multiple portraits per slot, the pixel pipeline, the export mapping, the
-generated installer, and the zip writer. It writes `test_zip.zip` as a side
-effect, which is ignored by git.
+multiple portraits per slot, the pixel pipeline, saving and restoring, the export
+mapping, the generated companion mod, the installer, and the zip writer. It
+writes `test_zip.zip` as a side effect, which is ignored by git.
 
 The check worth understanding is **PATTERNS vs the GML**. The tool only accepts
 tags whose shape appears in the mod's 19-entry precedence list, and a tag that
@@ -153,21 +163,41 @@ array in the same order* as the portrait lookup. The first key with a slot is th
 same key that won the sprite, which is why the clothes can never disagree with
 the face on screen.
 
-**The one rule that matters: it acts only on the rising edge of dialogue.**
-(Verified in game — a Textbox instance lasts a whole conversation, so the outfit
-is applied once and does not re-assert between lines.)
-`ANCHOR.get_menu(Menu.Textbox)` going from `undefined` to a menu is a new
-conversation; that is the only moment the outfit is touched. Between
-conversations the wardrobe is entirely the player's — cycle presets, edit them in
-the customization menu, nothing fights back. The naive alternative (re-assert
-whenever the winning tag changes) silently reverts the player when they dress up
-and walk outdoors, and reads as a haunted game rather than a mod.
+### When it re-dresses you
 
-Guards: cutscenes drive the portrait but never the clothes (the FSM routes preset
-changes through animations); the slot is range-checked against
-`ARI.presets.count()` in case fewer than 8 presets are saved; and it no-ops when
-the preset is already correct, so an ordinary conversation costs nothing.
+Two moments, and they answer different questions.
 
-The accepted trade-off, worth knowing before it surprises you: **on-map clothes
-only update when you talk to someone.** If the season turns while you wander,
-you keep the previous outfit until the next conversation.
+- **The trigger changed.** Walking indoors, the weather turning, a new day, a new
+  season — the same events that change which portrait would be drawn. This is
+  what makes the inn outfit appear when you enter the inn, rather than when you
+  next talk to someone in it.
+- **A conversation opened.** The portrait is now on screen, so the clothes have
+  to agree with it even if nothing about the world moved.
+
+**In between, the wardrobe is yours.** Cycling presets by hand sticks until the
+world moves on or someone talks to you — the mod re-asserts on *changes*, not
+every frame, so it never fights you mid-outfit-change.
+
+Cost: five number comparisons per frame (season, weekday, day of month, weather,
+location — everything `deulo_farmer_portraits_context()` reads; `inout` is
+derived from the location). The expensive part — building the context struct and
+up to nineteen key strings — only runs on frames where the answer could differ.
+
+A change that arrives at a bad moment is **deferred, not dropped**: it stays
+pending and retries until the frame is safe, so a season that turns while you
+sleep lands as soon as you are on your feet. Unsafe means mid-cutscene
+(`MIST.is_running()` — the FSM routes preset changes through animations), the
+end-of-day sequence (`ARI.end_of_day_status`), or the customization menu being
+open, which *is* the wardrobe and must never be fought.
+
+### If a portrait maps to an outfit slot you never built
+
+A new farmer starts with **one** preset, and presets can be deleted, so a slot in
+the table may simply not exist. The mod leaves the outfit alone rather than
+dressing you in something that disagrees with the portrait, and logs once through
+`mmapi_log_warn` naming the tag and the slot — the only way to notice from inside
+the game.
+
+Presets are created in order, so mapping slot 6 means building six presets even
+if 2–5 are unused. The tool warns about exactly that gap before you export, and
+the export's next-steps panel tells you how many presets the build needs.

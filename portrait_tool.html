@@ -10,7 +10,7 @@
   --edge:#3a2b35; --pill:#f6c6d7; --pill-edge:#e099b6;
   --ink:#4a2f3d; --ink-dim:#75596a; --on-page:#efdfe7;
   --tile:#ece3f0; --tile-edge:#a08fa8; --tile-on:#d6c8e0;
-  --ok:#3f7d52; --bad:#b23c3c;
+  --ok:#3f7d52; --bad:#b23c3c; --warn:#9a6410;
 }
 *{box-sizing:border-box}
 body{margin:0;padding:22px 20px 48px;background:var(--page);color:var(--ink);
@@ -130,11 +130,13 @@ button.add:hover:not(:disabled){background:#332838}
 #status{display:block;font-size:14px;font-weight:600;margin-top:10px}
 #status .line{padding:1px 0}
 #status .bad{color:var(--bad)} #status .ok{color:var(--ok)}
+#status .warn{color:var(--warn)}
 .note{font-size:13px;color:var(--ink-dim);margin:12px 0 0;line-height:1.6}
 .note b{color:var(--ink);font-weight:700}
 .gridfoot{display:flex;justify-content:space-between;align-items:flex-end;
   gap:16px;flex-wrap:wrap}
 .gridfoot .note{margin-bottom:0}
+.tools{display:flex;gap:12px;align-items:center}
 .toggle{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;
   color:var(--ink);white-space:nowrap;cursor:pointer;user-select:none}
 .toggle input{width:16px;height:16px;accent-color:#c06a92;cursor:pointer}
@@ -151,8 +153,12 @@ button.add:hover:not(:disabled){background:#332838}
     <div class="gridfoot">
       <p class="note">Drop PNGs here to fill empty slots. Click a slot to edit it.<br>
         <b>Slot number = in-game preset slot.</b></p>
-      <label class="toggle" title="The export always mirrors; this only changes what you see here.">
-        <input type="checkbox" id="flip"> Preview flipped images</label>
+      <div class="tools">
+        <label class="toggle" title="The export always mirrors; this only changes what you see here.">
+          <input type="checkbox" id="flip"> Preview flipped images</label>
+        <button class="plain" id="reset"
+          title="Your work is saved in this browser. This throws it away.">Start over</button>
+      </div>
     </div>
     <div class="foot">
       <button id="export">Finish and export to game</button>
@@ -173,9 +179,9 @@ button.add:hover:not(:disabled){background:#332838}
 /* ------------------------------------------------------------------ data
    Vocabulary and the precedence list are transcribed from the mod. PATTERNS
    must stay identical to deulo_farmer_portraits_keys() in FarmerPortraits.gml;
-   check_patterns.py in this folder diffs the two and is the thing to run after
-   any edit here. An off-list tag is never looked up in game and fails silently,
-   which is undebuggable without this check.                                  */
+   `node test_tool.mjs` diffs the two and is the thing to run after any edit
+   here. An off-list tag is never looked up in game and fails silently, which is
+   undebuggable without that check.                                           */
 
 const SEASONS = ['spring','summer','fall','winter'];
 const WEATHER = ['sunny','rain','thunder','special'];
@@ -249,7 +255,11 @@ const SYNC_DIR = 'FarmerPortraitsSync';   // the outfit-swapping companion mod
    the same in-game outfit - "my winter coat covers all four winter weathers" -
    so the tag is what varies and the slot number is what they share. */
 
-const blank = () => ({file:null, url:'', img:null,
+/* url is the *downsampled* PNG as a data URL - see toNative(). Uploads are
+   reduced to native pixels the moment they land, so the preview, the export and
+   the saved copy are all the same handful of kilobytes, and nothing has to hold
+   on to a 540x960 File. */
+const blank = () => ({name:'', url:'', img:null,
   isDefault:false, season:'', weather:'', kind:'', value:''});
 const slots = Array.from({length:SLOTS}, () => ({cards:[blank()]}));
 let current = 0;
@@ -259,6 +269,60 @@ let notice = '';
 
 const everyCard = () =>
   slots.flatMap((s, slot) => s.cards.map((card, idx) => ({card, slot, idx})));
+
+/* ------------------------------------------------------------- persistence
+   Building eight portraits is half an hour of work; losing it to a stray reload
+   is not acceptable. Saving is possible at all only because uploads are stored
+   downsampled - a 90x160 PNG is a few KB, where the Picrew original is tens of
+   KB and eight of them would not fit in localStorage. */
+
+const STORE = 'farmerPortraitsSync.v1';
+let restoring = false;
+let saveNote = '';
+
+function saveState(){
+  if (restoring) return;
+  try {
+    localStorage.setItem(STORE, JSON.stringify({v:1, current,
+      slots: slots.map(s => ({cards: s.cards.map(c => ({
+        name:c.name, url:c.url, isDefault:c.isDefault, season:c.season,
+        weather:c.weather, kind:c.kind, value:c.value,
+      }))}))}));
+    saveNote = '';
+  } catch (err){
+    // Quota, private browsing, a locked-down browser - all the same to the user.
+    saveNote = 'your work is not being saved — browser storage is unavailable';
+  }
+}
+
+function restoreState(){
+  let raw = null;
+  try { raw = localStorage.getItem(STORE); } catch (err){ return; }
+  if (!raw) return;
+  let data;
+  try { data = JSON.parse(raw); } catch (err){ return; }
+  // Anything unrecognised is dropped rather than half-applied: a broken restore
+  // that silently loses one card is worse than starting clean.
+  if (!data || data.v !== 1 || !Array.isArray(data.slots)) return;
+  restoring = true;
+  data.slots.slice(0, SLOTS).forEach((s, i) => {
+    if (!s || !Array.isArray(s.cards) || !s.cards.length) return;
+    slots[i].cards = s.cards.map(c => Object.assign(blank(), {
+      name: String(c.name || ''), url: typeof c.url === 'string' ? c.url : '',
+      isDefault: !!c.isDefault,
+      season: SEASONS.includes(c.season) ? c.season : '',
+      weather: WEATHER.includes(c.weather) ? c.weather : '',
+      kind: KINDS.some(k => k[0] === c.kind) ? c.kind : '',
+      value: String(c.value || ''),
+    }));
+  });
+  if (Number.isInteger(data.current) && data.current >= 0 && data.current < SLOTS)
+    current = data.current;
+  restoring = false;
+  // Decoding is async, so a card is "still loading" for a frame or two. Export
+  // is gated on card.img, not card.url, so it cannot race ahead of this.
+  everyCard().forEach(({card}) => { if (card.url) attach(card); });
+}
 
 /* --------------------------------------------------------------- tag logic
    Ported verbatim from make_mapping.py, which is validated and in use. */
@@ -404,7 +468,7 @@ function makeCard(card, idx){
     preview.className = 'preview' + (card.url ? ' filled' : '');
     preview.innerHTML = card.url ? `<img src="${card.url}" alt="">`
       : '<div class="arrow">&#11014;</div><div class="lbl">UPLOAD</div>';
-    filename.textContent = card.file ? card.file.name : '';
+    filename.textContent = card.name;
     const st = statusOf(card);
     tagline.innerHTML = st.state === 'ok'
       ? `Tag: <code class="ok">${st.tag}</code>`
@@ -437,8 +501,7 @@ $('addCard').onclick = () => {
 };
 function removeCard(idx){
   if (slots[current].cards.length < 2) return;
-  const [gone] = slots[current].cards.splice(idx, 1);
-  if (gone.url) URL.revokeObjectURL(gone.url);
+  slots[current].cards.splice(idx, 1);
   buildCards();
   render();
 }
@@ -448,9 +511,23 @@ function removeCard(idx){
 $('flip').onchange = () =>
   $('wrap').classList.toggle('flipped', $('flip').checked);
 
+// Work persists across reloads, so there has to be a way back to empty.
+$('reset').onclick = () => {
+  if (!confirm('Throw away every portrait and trigger and start from empty?')) return;
+  try { localStorage.removeItem(STORE); } catch (err){ /* nothing to remove */ }
+  slots.forEach(s => { s.cards = [blank()]; });
+  current = 0;
+  notice = '';
+  buildCards();
+  render();
+};
+
 /* ---------------------------------------------------------------- render */
 
 function render(){
+  // First, so that a browser refusing to store gets to say so on this pass
+  // rather than the next one.
+  saveState();
   slots.forEach((s, i) => {
     const cell = cells[i];
     cell.classList.toggle('sel', i === current);
@@ -478,20 +555,52 @@ function render(){
   });
 
   const problems = validate();
-  // The notice is reported but never blocks export - a rejected stray file is
-  // not a reason to keep the button dead once every portrait is valid.
-  const msgs = notice ? [notice, ...problems] : problems;
-  $('status').innerHTML = msgs.length
-    ? msgs.map(m => `<div class="line bad">⚠ ${m}</div>`).join('')
-    : `<div class="line ok">✓ ${everyCard().length} portraits ready</div>`;
+  // Three tiers, and only the middle one blocks. A rejected stray file or a
+  // warning about preset numbering is not a reason to keep the button dead once
+  // every portrait is valid.
+  const lines = [
+    ...[notice, saveNote].filter(Boolean).map(m => `<div class="line warn">⚠ ${m}</div>`),
+    ...problems.map(m => `<div class="line bad">⚠ ${m}</div>`),
+    ...advisories().map(m => `<div class="line warn">⚠ ${m}</div>`),
+  ];
+  if (!problems.length)
+    lines.push(`<div class="line ok">✓ ${everyCard().length} portraits ready</div>`);
+  $('status').innerHTML = lines.join('');
   $('export').disabled = problems.length > 0;
+}
+
+// Highest slot number in use, 1-based - the number of outfit presets the player
+// has to have built in game for the whole mapping to reach.
+function presetsNeeded(){
+  const used = everyCard().filter(x => statusOf(x.card).state === 'ok').map(x => x.slot);
+  return used.length ? Math.max(...used) + 1 : 1;
+}
+
+// Real mistakes that still export cleanly, so they warn rather than block. The
+// gap case is the one that bites: a fresh farmer has ONE preset and they are
+// created in order, so mapping slot 6 while slot 3 is empty still means building
+// a throwaway preset 3 in game before preset 6 exists at all.
+function advisories(){
+  const out = [];
+  const used = new Set(everyCard()
+    .filter(x => statusOf(x.card).state === 'ok').map(x => x.slot));
+  const need = presetsNeeded();
+  const gaps = [];
+  for (let i = 0; i < need; i++) if (!used.has(i)) gaps.push(i + 1);
+  if (gaps.length) out.push(`slot ${gaps.join(', ')} unused but slot ${need} is `
+    + `— you still have to create ${need} outfit presets in game`);
+  return out;
 }
 
 function validate(){
   const out = [];
   const all = everyCard();
-  const noImage = all.filter(x => !x.card.file).length;
+  const noImage = all.filter(x => !x.card.url).length;
   if (noImage) out.push(`${noImage} portrait(s) need an image`);
+  // Restored images decode asynchronously; exporting before that lands would
+  // write empty sprites, so the button stays dead for the frame or two it takes.
+  const loading = all.filter(x => x.card.url && !x.card.img).length;
+  if (loading) out.push(`${loading} portrait(s) still loading`);
   const bad = all.filter(x => statusOf(x.card).state !== 'ok').length;
   if (bad) out.push(`${bad} portrait(s) need a valid trigger`);
   const defs = all.filter(x => x.card.isDefault).length;
@@ -508,19 +617,40 @@ function validate(){
 
 /* ------------------------------------------------------------------ files */
 
-function loadInto(card, file){
-  if (card.url) URL.revokeObjectURL(card.url);
-  card.file = file;
-  card.url = URL.createObjectURL(file);
+// Decode card.url (always a small PNG data URL) into the Image the export uses.
+function attach(card){
   const im = new Image();
   im.onload = () => { card.img = im; repaintCards(); render(); };
-  // Extension alone is a weak check; a renamed file fails to decode here.
   im.onerror = () => {
-    Object.assign(card, {file:null, url:'', img:null});
-    notice = `${file.name} is not a readable PNG`;
+    Object.assign(card, {url:'', img:null});
     repaintCards(); render();
   };
   im.src = card.url;
+}
+
+// Downsample on arrival rather than at export. The card then holds native
+// pixels only, which is what makes the state small enough to save - and it
+// means a too-tall image is reported the moment it is dropped instead of
+// fifteen minutes later when the export fails.
+function loadInto(card, file){
+  const src = URL.createObjectURL(file);
+  const im = new Image();
+  im.onload = () => {
+    URL.revokeObjectURL(src);
+    let nat;
+    try { nat = toNative(im); }
+    catch (err){ notice = `${file.name}: ${err.message}`; repaintCards(); render(); return; }
+    card.name = file.name;
+    card.url = nat.canvas.toDataURL('image/png');
+    attach(card);
+  };
+  // Extension alone is a weak check; a renamed file fails to decode here.
+  im.onerror = () => {
+    URL.revokeObjectURL(src);
+    notice = `${file.name} is not a readable PNG`;
+    repaintCards(); render();
+  };
+  im.src = src;
 }
 
 // Dropping several files on one slot fills it and then adds cards for the rest,
@@ -542,7 +672,7 @@ function acceptFiles(files, slot){
   // A drop on the panel background spreads across slots that are still empty.
   let n = 0;
   for (let i = 0; i < SLOTS && n < list.length; i++)
-    if (!slots[i].cards[0].file) loadInto(slots[i].cards[0], list[n++]);
+    if (!slots[i].cards[0].url) loadInto(slots[i].cards[0], list[n++]);
 }
 
 let pickTarget = null;
@@ -604,15 +734,41 @@ function nativeScale(d){
   return best;
 }
 
-// Downsample, mirror and pad in a single pass. Padding goes on TOP: the sprite
-// origin is top-left and the character sits flush to the bottom of the Picrew
-// frame, so anchoring the bottom is what keeps portraits from jumping.
-function processImage(img){
+// Step one, run once when a file lands: detect the upscale factor and take one
+// pixel per block. Deliberately separate from the mirror-and-pad below, because
+// detection must never run twice - a stored native image handed back to
+// nativeScale() could in principle be read as an upscale of something smaller.
+function toNative(img){
   const d = imageDataOf(img);
   const n = nativeScale(d);
   const nw = d.width / n, nh = d.height / n;
   if (nh > TARGET_H)
-    throw new Error(`image is ${nh}px tall at native scale, taller than ${TARGET_H}`);
+    throw new Error(`${nh}px tall at native scale, taller than ${TARGET_H}`);
+  const c = document.createElement('canvas');
+  c.width = nw; c.height = nh;
+  const ctx = c.getContext('2d');
+  const out = ctx.createImageData(nw, nh);
+  for (let y = 0; y < nh; y++){
+    for (let x = 0; x < nw; x++){
+      const si = ((y*n)*d.width + x*n) * 4, di = (y*nw + x) * 4;
+      out.data[di]   = d.data[si];
+      out.data[di+1] = d.data[si+1];
+      out.data[di+2] = d.data[si+2];
+      out.data[di+3] = d.data[si+3];
+    }
+  }
+  ctx.putImageData(out, 0, 0);
+  return {canvas:c, data:out, w:nw, h:nh, scale:n};
+}
+
+// Step two, run at export: mirror and pad native pixels to the sprite the mod
+// wants. Padding goes on TOP - the sprite origin is top-left and the character
+// sits flush to the bottom of the Picrew frame, so anchoring the bottom is what
+// keeps portraits from jumping.
+function finish(d){
+  const nw = d.width, nh = d.height;
+  if (nh > TARGET_H)
+    throw new Error(`image is ${nh}px tall, taller than ${TARGET_H}`);
   let opaque = true;
   const c = document.createElement('canvas');
   c.width = nw; c.height = TARGET_H;
@@ -621,7 +777,7 @@ function processImage(img){
   const pad = TARGET_H - nh;
   for (let y = 0; y < nh; y++){
     for (let x = 0; x < nw; x++){
-      const si = ((y*n)*d.width + (nw-1-x)*n) * 4;     // mirrored source pixel
+      const si = (y*nw + (nw-1-x)) * 4;                // mirrored source pixel
       const di = ((y+pad)*nw + x) * 4;
       out.data[di]   = d.data[si];
       out.data[di+1] = d.data[si+1];
@@ -631,7 +787,15 @@ function processImage(img){
     }
   }
   ctx.putImageData(out, 0, 0);
-  return {canvas:c, w:nw, h:TARGET_H, scale:n, opaque};
+  return {canvas:c, w:nw, h:TARGET_H, opaque};
+}
+
+// The two halves back to back, which is the path a raw Picrew export takes.
+// Production never calls this - it downsamples on upload and finishes on export
+// - but it is the thing worth testing end to end.
+function processImage(img){
+  const n = toNative(img);
+  return Object.assign(finish(n.data), {scale:n.scale});
 }
 
 const TOML = (w,h) => `[meta_properties]
@@ -721,7 +885,9 @@ async function buildFiles(){
   const files = [], outfits = {}, warnings = [];
   for (const {card, slot} of everyCard()){
     const tag = tagOf(card);
-    const r = processImage(card.img);
+    // card.img is already native - it was downsampled on upload - so only the
+    // mirror-and-pad half runs here.
+    const r = finish(imageDataOf(card.img));
     if (r.opaque) warnings.push(`${tag} has no transparency`);
     files.push({name: `${dir}spr_farmer_portrait_${tag}.png`,
                 data: await canvasBytes(r.canvas)});
@@ -772,7 +938,10 @@ $('export').onclick = async () => {
       + `<b>${MOD_DIR}\\</b> and <b>${SYNC_DIR}\\</b>, so use <b>Extract Here</b>.<br>`
       + `3. Open MOMI, enable <b>both</b> new mods, and hit <b>Install</b>. `
       + `Art is baked in at install time.<br>`
-      + `4. In game, build outfit presets 1&ndash;8 to match the slots above.<br>`
+      + `4. In game, build <b>${presetsNeeded()} outfit preset`
+      + `${presetsNeeded() === 1 ? '' : 's'}</b> to match the slots above. `
+      + `A new farmer starts with one; the rest are added in the customization `
+      + `menu, and a slot you never build is simply skipped.<br>`
       + `<br><b>INSTALL.bat</b> in the zip does steps 1&ndash;2 for you. Windows `
       + `blocks scripts that came from a browser, so right-click it &rarr; `
       + `Properties &rarr; tick <b>Unblock</b> first. The manual route above is `
@@ -817,53 +986,126 @@ function __sage_fps_runtime() {
     if (global[$ "__sage_fps"] == undefined) {
         global.__sage_fps = {
             registered: undefined,
-            menu:       undefined,
             slots:      __sage_fps_slots(),
+            pending:    true,        // dress the farmer once, as soon as one exists
+            menu:       undefined,   // textbox instance, for the conversation edge
+            warned:     undefined,   // last missing slot logged, so it logs once
+            seen:       false,       // has the fingerprint below been taken yet
+            season:     undefined,
+            day:        undefined,
+            dom:        undefined,
+            weather:    undefined,
+            loc:        undefined,
         };
     }
     return global.__sage_fps;
 }
 
-/// Apply the outfit exactly once, on the rising edge of a conversation.
-function sage_fps_tick() {
-    var _rt = __sage_fps_runtime();
-
-    if (!is_struct(ANCHOR)) return;
-
-    var _menu = ANCHOR.get_menu(Menu.Textbox);
-    if (_menu == undefined) {
-        // Between conversations the wardrobe belongs to the player. Cycle
-        // presets, edit them, nothing here fights back.
-        _rt.menu = undefined;
-        return;
+/// True when any input the portrait lookup reads has changed since last frame.
+///
+/// This is the whole efficiency story. Comparing five numbers costs nothing, so
+/// the expensive part - building the context struct and up to nineteen key
+/// strings - only runs on frames where the answer can actually differ. Every
+/// field deulo_farmer_portraits_context() reads is covered: "inout" is derived
+/// from the location and needs no entry of its own, and "cutscene" is deliberately
+/// absent because cutscenes are never a moment to change clothes.
+function __sage_fps_context_changed(_rt) {
+    var _season = undefined, _day = undefined, _dom = undefined;
+    if (is_struct(CALENDAR)) {
+        _season = CALENDAR.season();
+        _day    = CALENDAR.day_type();
+        _dom    = CALENDAR.day();
     }
-    if (_rt.menu == _menu) return;   // same conversation, already handled
+    var _weather = is_struct(WEATHER) ? WEATHER[$ "weather"] : undefined;
+    var _loc = CURRENT_LOCATION_ID;
+
+    if (_rt.seen
+        && _rt.season == _season && _rt.day == _day && _rt.dom == _dom
+        && _rt.weather == _weather && _rt.loc == _loc) return false;
+
+    _rt.seen    = true;
+    _rt.season  = _season;
+    _rt.day     = _day;
+    _rt.dom     = _dom;
+    _rt.weather = _weather;
+    _rt.loc     = _loc;
+    return true;
+}
+
+/// True on the frame a conversation opens. The portrait becomes visible here, so
+/// this is the one moment the clothes must agree with it even when nothing about
+/// the world changed - the player may have cycled presets by hand since.
+function __sage_fps_dialogue_started(_rt) {
+    if (!is_struct(ANCHOR)) return false;
+    var _menu = ANCHOR.get_menu(Menu.Textbox);
+    if (_menu == _rt.menu) return false;
     _rt.menu = _menu;
+    return _menu != undefined;
+}
 
-    try {
-        // Cutscenes drive the portrait but not the clothes: the FSM routes
-        // preset changes through animations, so a mid-cutscene swap is the
-        // most likely thing to glitch.
-        if (deulo_farmer_portraits_cutscene_name() != undefined) return;
+/// Is this a safe frame to rebuild the farmer's paper doll? When it is not the
+/// change stays pending and is retried, so a season that turns while you sleep
+/// still lands the moment you are back on your feet.
+function __sage_fps_safe() {
+    if (!instance_exists(obj_ari)) return false;
+    if (!is_struct(ARI)) return false;
+    // Sleeping, passing out, the end-of-day tally: the farmer is mid-sequence.
+    if (ARI[$ "end_of_day_status"] != undefined) return false;
+    // Cutscenes animate the farmer and route preset changes through the FSM, so
+    // a swap mid-scene is the most likely thing to glitch.
+    if (is_struct(MIST) && MIST.is_running()) return false;
+    // The customization menu IS the wardrobe. Never fight the player inside it.
+    if (is_struct(ANCHOR) && ANCHOR.get_menu(Menu.Customization) != undefined) return false;
+    return true;
+}
 
-        if (!instance_exists(obj_ari)) return;
-        if (!is_struct(ARI)) return;
-        var _count = ARI.presets.count();
-        if (_count <= 0) return;
+function __sage_fps_apply(_rt) {
+    var _count = ARI.presets.count();
+    if (_count <= 0) return;
 
-        // Same key array, same order as the sprite lookup, so the first key
-        // with a slot is the same key that won the portrait.
-        var _keys = deulo_farmer_portraits_keys(deulo_farmer_portraits_context());
-        for (var _i = 0; _i < array_length(_keys); _i++) {
-            var _slot = _rt.slots[$ _keys[_i]];
-            if (_slot == undefined) continue;
-            if (_slot < 0 || _slot >= _count) return;       // fewer presets saved than mapped
-            if (ARI.preset_index_selected == _slot) return; // already right, skip the rebuild
-            obj_ari.change_preset(_slot);
+    // Same key array, same order as the sprite lookup, so the first key with a
+    // slot is the same key that won the portrait.
+    var _keys = deulo_farmer_portraits_keys(deulo_farmer_portraits_context());
+    for (var _i = 0; _i < array_length(_keys); _i++) {
+        var _slot = _rt.slots[$ _keys[_i]];
+        if (_slot == undefined) continue;
+        if (_slot < 0) return;
+        if (_slot >= _count) {
+            // A new farmer starts with ONE outfit preset, and presets can be
+            // deleted, so a mapped slot may simply not exist. Leaving the
+            // wardrobe alone beats dressing them in the wrong outfit - and this
+            // log line is the only way to find that out from inside the game.
+            if (_rt.warned != _slot) {
+                _rt.warned = _slot;
+                mmapi_log_warn(SAGE_FPS_ID, "portrait '" + _keys[_i]
+                    + "' is mapped to outfit preset " + string(_slot + 1)
+                    + ", but only " + string(_count)
+                    + " exist - add presets in the customization menu");
+            }
             return;
         }
+        if (ARI.preset_index_selected == _slot) return;  // already right, skip the rebuild
+        obj_ari.change_preset(_slot);
+        return;
+    }
+}
+
+/// Re-dress the farmer whenever the trigger that picks the portrait changes -
+/// walking indoors, the weather turning, a new day, a new season - and again
+/// whenever a conversation opens. In between the wardrobe is the player's:
+/// cycling presets by hand sticks until the world moves on.
+function sage_fps_tick() {
+    var _rt = __sage_fps_runtime();
+    try {
+        if (__sage_fps_context_changed(_rt)) _rt.pending = true;
+        if (__sage_fps_dialogue_started(_rt)) _rt.pending = true;
+        if (!_rt.pending) return;
+        if (!__sage_fps_safe()) return;   // still pending; try again next frame
+        _rt.pending = false;
+        __sage_fps_apply(_rt);
     } catch (_err) {
         // A wardrobe change is never worth taking the game down for.
+        _rt.pending = false;
     }
 }
 
@@ -874,7 +1116,7 @@ function sage_fps_register() {
     mmapi_register(sage_fps_tick);
 }
 
-mmapi_mod_declare(SAGE_FPS_ID, "1.0.0");
+mmapi_mod_declare(SAGE_FPS_ID, "1.1.0");
 sage_fps_register();
 `;
 }
@@ -889,12 +1131,12 @@ const SYNC_MANIFEST = JSON.stringify({
   requires_hooks: [],
 }, null, 4) + '\n';
 
-/* Installer. It writes into the user's MOMI mods library - the folder MOMI asks
-   for at startup - and never into the game directory. MOMI owns the game
-   directory: it copies the library in on install and manages profiles there, so
-   anything written straight to the game is silently reverted by the next
-   install. The library path is not recorded anywhere on disk, so the user
-   supplies it and we validate it by the presence of the required base mod.
+/* Installer. It writes into the user's MOMI mods folder - the one MOMI asks for
+   at startup - and never into the game directory. MOMI owns the game directory:
+   it bakes the enabled mods straight into assets.zip on install, so anything
+   written there by hand is silently overwritten by the next install. The mods
+   folder is not recorded anywhere on disk, so the user supplies it and we
+   validate it by the presence of the required base mod.
    A browser cannot delete files, which is why stale-sprite cleanup lives here.
    CRLF throughout: cmd.exe mis-parses LF-only batch files. */
 const INSTALLER = [
@@ -980,6 +1222,7 @@ const MANIFEST = JSON.stringify({
   requires_hooks: [],
 }, null, 4) + '\n';
 
+restoreState();
 buildCards();
 render();
 </script>
