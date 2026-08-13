@@ -1,107 +1,87 @@
 ==============================================================
   FARMER PORTRAITS - SYNCHRONIZED
-  Custom dialogue portraits that also change your outfit
+  Dialogue portraits that also change your farmer's outfit
 ==============================================================
 
+  YOU NEED
+    MOMI, the "Farmer Portraits" mod by DeUlo, and your
+    portraits as PNG with a transparent background.
 
-  BEFORE YOU START
-  ----------------
-    * MOMI (Mods Of Mistria Installer)
-    * The "Farmer Portraits" mod by DeUlo, already installed
-    * Your portraits as PNG, with a transparent background
-      (Picrew exports work as they are)
-
-
-  WHAT'S IN HERE
-  --------------
+  IN HERE
     portrait_tool.html    The builder. Opens in any browser.
-    FarmerPortraitsSync   The outfit mod. Install this once.
-    README.txt            This file.
+    FarmerPortraitsSync   The outfit mod. Install once.
 
 
-  STEP 1 - INSTALL THE OUTFIT MOD (once, ever)
-  --------------------------------------------
-    Drag the FarmerPortraitsSync folder into your mods folder.
+  HOW IT MAPS
+  -----------
+    The grid has 8 slots. Slot 1 is outfit preset 1 in game,
+    slot 2 is preset 2, and so on.
 
-    That's the folder you point MOMI at - the same one that
-    already holds the "Farmer Portraits" folder.
+    You can assign several portraits to one slot, each with
+    its own trigger. They all share that slot's outfit.
 
+    Slot 3, for example:
 
-  STEP 2 - BUILD YOUR PORTRAITS
-  -----------------------------
-    Open portrait_tool.html in your browser.
+        at the beach  \
+        raining        > all show preset 3's outfit
+        it's winter   /
 
-    1. Drag your PNGs onto the 8 slots.
-       Slot number = outfit preset number in game.
-
-    2. For each portrait, choose when it should appear:
-       season / weather / and one more condition.
-       Tick "use as default" on exactly one portrait.
-
-       Need one outfit to cover several triggers? Click
-       "+ Add another portrait to this slot". One winter coat
-       can serve winter rain, winter sun and winter thunder.
-
-    3. Click "Finish and export to game".
-       You get FarmerPortraitsExample.zip.
+    Three different pictures on screen, one set of clothes.
 
 
-  STEP 3 - INSTALL YOUR PORTRAITS
-  -------------------------------
-    1. Unzip it. Drag the folder inside into your mods folder.
+  1. INSTALL THE OUTFIT MOD  (once, ever)
+  ---------------------------------------
+    Drag FarmerPortraitsSync into your mods folder - the one
+    you point MOMI at, next to the "Farmer Portraits" folder.
 
-       *** If a folder of that name is already there, DELETE it
-       *** first. Don't merge. Old portraits left behind can
+
+  2. BUILD YOUR PORTRAITS
+  -----------------------
+    Open portrait_tool.html.
+
+    a. Drag your PNGs onto the slots.
+    b. Give each one a trigger: season / weather / plus one
+       more condition. Tick "use as default" on exactly one.
+    c. "+ Add another portrait to this slot" puts more in the
+       same slot.
+    d. Click "Finish and export to game".
+
+
+  3. INSTALL YOUR PORTRAITS
+  -------------------------
+    a. Unzip. Drag the folder inside into your mods folder.
+
+       *** If that folder is already there, DELETE it first.
+       *** Merging leaves old portraits behind, and they can
        *** override your new ones.
 
-    2. Open MOMI, tick both mods, hit Install.
+    b. Open MOMI, tick both mods, hit Install.
+    c. In game, build your outfit presets so preset 1 matches
+       slot 1, preset 2 matches slot 2, and so on.
 
-    3. In game, open the customization menu and build your
-       outfit presets: preset 1 to match slot 1, preset 2 to
-       match slot 2, and so on.
-
-    Done. Your portrait follows the world, and your clothes
-    follow your portrait.
-
-
-  CHANGING PORTRAITS LATER
-  ------------------------
-    Just steps 2 and 3 again. The tool remembers your work
-    between visits, so you can tweak one portrait and re-export.
-    ("Start over" wipes it and gives you an empty grid.)
+    To change portraits later, repeat 2 and 3. The tool
+    remembers your work between visits.
 
 
   IF SOMETHING LOOKS WRONG
   ------------------------
-    Nothing changed after installing
-      Artwork is baked in at install time. Open MOMI and hit
-      Install again.
+    Nothing changed
+      Artwork is baked in at install time. Hit Install again.
 
     An old portrait keeps showing up
-      You merged the folder instead of replacing it. Delete
-      FarmerPortraitsExample and unzip again.
+      You merged instead of replacing. Delete the folder and
+      unzip again.
 
-    Portraits work, but the clothes never change
+    Portraits work, clothes don't
       You need as many outfit presets in game as the highest
-      slot you used. A new farmer starts with only one. Add
-      more in the customization menu.
+      slot you used. A new farmer has only one - add more in
+      the customization menu.
 
-    Still installing old artwork
-      Keep only ONE mods folder. With two, MOMI may be reading
-      the other one.
+    Still getting old artwork
+      Keep only ONE mods folder. MOMI may be reading the other.
 
     Everything faces the wrong way
-      Leave "Face right" in the Farmer Portraits settings turned
-      OFF. The tool already mirrors your art for you.
-
-
-  GOOD TO KNOW
-  ------------
-    * Your art is reduced to its true pixel size and mirrored
-      automatically. Nothing is cropped or stretched.
-    * Don't rename the exported folder or edit its manifest -
-      MOMI identifies mods by what's in there.
-    * Nothing here touches the internet. The tool runs entirely
-      inside your browser.
+      Turn "Face right" OFF in the Farmer Portraits settings.
+      The tool already mirrors for you.
 
 ==============================================================
