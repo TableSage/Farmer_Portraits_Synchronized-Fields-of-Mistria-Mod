@@ -9,3 +9,7 @@ test_zip.zip
 # ignored - it ships, and is the one mod folder that lives in this repo.
 FarmerPortraitsExample/
 *.zip
+
+# Maintainer notes: rationale, engine facts, verified behaviour. README.txt is
+# the one that ships.
+NOTES.md
