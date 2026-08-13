@@ -39,6 +39,10 @@ actually looks up are offered, and the test suite checks that list against the
 mod's own GML rather than against its readme — a tag off that list fails
 silently in game, which cannot be debugged from inside the game.
 
+Cutscene triggers and the late-game or secret locations are hidden behind an
+**include spoiler options** checkbox, off by default — the names alone give away
+story beats, which is how DeUlo publishes them too.
+
 The mod takes the first matching trigger in its precedence order, so a portrait
 can end up unreachable: cover winter indoors and winter outdoors and a plain
 `winter` portrait has nothing left to appear in. The tool works that out and

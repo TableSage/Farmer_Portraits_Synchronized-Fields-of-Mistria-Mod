@@ -151,6 +151,7 @@ button.add:hover:not(:disabled){background:#2e2733}
 .gridfoot{display:flex;justify-content:space-between;align-items:flex-end;
   gap:16px;flex-wrap:wrap}
 .gridfoot .note{margin-bottom:0}
+.toggles{display:flex;gap:18px;flex-wrap:wrap}
 .toggle{display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;
   color:var(--ink);white-space:nowrap;cursor:pointer;user-select:none}
 .toggle input{width:17px;height:17px;accent-color:#c06a92;cursor:pointer}
@@ -172,8 +173,12 @@ button.add:hover:not(:disabled){background:#2e2733}
     <p class="note box" id="afterExport" style="display:none"></p>
     <div class="gridfoot">
       <p class="note"><b>Slot number = in-game preset slot.</b></p>
-      <label class="toggle" title="The export always mirrors. This only changes what you see here.">
-        <input type="checkbox" id="flip"> Preview flipped images</label>
+      <div class="toggles">
+        <label class="toggle" title="The export always mirrors. This only changes what you see here.">
+          <input type="checkbox" id="flip"> Preview flipped images</label>
+        <label class="toggle" title="Adds every cutscene and the late-game and secret locations to the dropdowns. Names only, but they give away story beats.">
+          <input type="checkbox" id="spoilers"> Include spoiler options</label>
+      </div>
     </div>
     <div class="foot">
       <button id="reset"
@@ -219,29 +224,65 @@ small_greenhouse summit terithias_house town void_seal water_seal
 western_ruins`.split(/\s+/);
 
 const CUTSCENES = `adeline_eight_hearts adeline_four_hearts adeline_quest_board
-adeline_six_hearts adeline_ten_hearts adeline_two_hearts arena arena_end
-balor_eight_hearts balor_four_hearts balor_six_hearts balor_ten_hearts
-balor_two_hearts bathhouse bathhouse_date beach_date beach_secret big_chicken
-caldarus_eight_hearts caldarus_recovery caldarus_ten_hearts celine_eight_hearts
-celine_four_hearts celine_six_hearts celine_ten_hearts celine_two_hearts crafting
-day_zero deep_woods_picnic_date dying eiland_eight_hearts eiland_four_hearts
-eiland_six_hearts eiland_ten_hearts eiland_two_hearts elsie_dating_tutorial
-engagement_tutorial farm_introduction full_restore gem_cutting_date
-harvest_festival_dance harvest_festival_first_place harvest_festival_morning
+adeline_six_hearts adeline_ten_hearts adeline_two_hearts
+animal_festival_upcoming_eligible_year_one
+animal_festival_upcoming_eligible_year_two
+animal_festival_upcoming_ineligible_year_one
+animal_festival_upcoming_ineligible_year_two apiaries_and_terrariums arena
+arena_end balor_eight_hearts balor_four_hearts balor_six_hearts
+balor_ten_hearts balor_two_hearts bathhouse bathhouse_date beach_date
+beach_secret big_chicken break_earth_seal break_fire_seal
+break_ruins_seal_pt_1 break_ruins_seal_pt_2 break_ruins_seal_pt_3
+break_water_seal caldarus_eight_hearts caldarus_recovery caldarus_ten_hearts
+celine_eight_hearts celine_four_hearts celine_six_hearts celine_ten_hearts
+celine_two_hearts cop_some_ore crafting crafting_tutorial cutscene_basement
+day_zero deep_woods_picnic_date delivering_the_sealing_scroll
+destroy_vines_eastern_road do_a_bro_a_favor dragon_tablet_pt_1
+dragon_tablet_pt_2 dragon_tablet_pt_3 dragon_tablet_pt_4 dying earth_seal
+eiland_eight_hearts eiland_four_hearts eiland_six_hearts eiland_ten_hearts
+eiland_two_hearts elsie_dating_tutorial engagement_tutorial farm_introduction
+find_the_weathervane find_the_weathervane_setup fire_seal full_restore
+gem_cutting_date great_bird_0 great_bird_1 harvest_festival_dance
+harvest_festival_first_place harvest_festival_morning
 harvest_festival_no_place harvest_festival_second_place harvest_festival_setup
-harvest_festival_third_place hayden_eight_hearts hayden_four_hearts hayden_six_hearts
-hayden_ten_hearts hayden_two_hearts inn_meal_date jos_cooking_class
-juniper_eight_hearts juniper_four_hearts juniper_six_hearts juniper_ten_hearts
-juniper_two_hearts march_eight_hearts march_four_hearts march_six_hearts
-march_ten_hearts march_two_hearts mistril_rank park_date pet_arrival pet_dream
-prologue reina_eight_hearts reina_four_hearts reina_six_hearts reina_ten_hearts
-reina_two_hearts ryis_eight_hearts ryis_four_hearts ryis_six_hearts ryis_ten_hearts
-ryis_two_hearts seridia_eight_hearts seridia_ten_hearts shooting_star_morning
-shooting_star_romantic shooting_star_solo sleep spouse_delivery
-spring_festival_first_place spring_festival_morning spring_festival_no_place
-spring_festival_second_place spring_festival_setup spring_festival_third_place
-the_animal_festival valen_eight_hearts valen_four_hearts valen_six_hearts
-valen_ten_hearts valen_two_hearts wedding`.split(/\s+/);
+harvest_festival_third_place hayden_eight_hearts hayden_four_hearts
+hayden_six_hearts hayden_ten_hearts hayden_two_hearts inn_meal_date
+jos_cooking_class juniper_eight_hearts juniper_four_hearts juniper_six_hearts
+juniper_ten_hearts juniper_two_hearts lost_and_found march_eight_hearts
+march_four_hearts march_six_hearts march_ten_hearts march_two_hearts
+mistril_rank museum_donation_wanted narrows_secret park_date pet_arrival
+pet_dream player_delivery post_earth_seal post_water_seal
+priestess_quarters_pt_1 priestess_quarters_pt_2 procuring_the_sealing_scroll
+prologue reina_eight_hearts reina_four_hearts reina_six_hearts
+reina_ten_hearts reina_two_hearts repair_haydens_barn_pt_1
+repair_haydens_barn_pt_2 repair_the_beach_bridge_pt_1
+repair_the_beach_bridge_pt_2 repair_the_bell_tower_pt_1
+repair_the_bell_tower_pt_2 repair_the_bridge_pt_1 repair_the_bridge_pt_2
+repair_the_general_store_pt_1 repair_the_general_store_pt_2
+repair_the_inn_pt_1 repair_the_inn_pt_2 repair_the_mill_pt_1
+repair_the_mill_pt_2 repair_the_summit_stairs
+replenishing_mistrias_food_reserves_1
+replenishing_mistrias_food_reserves_2_pt_1
+replenishing_mistrias_food_reserves_2_pt_2 reveal_mistmare ryis_eight_hearts
+ryis_four_hearts ryis_six_hearts ryis_ten_hearts ryis_two_hearts
+seridia_eight_hearts seridia_ten_hearts shooting_star_adeline
+shooting_star_balor shooting_star_blocked shooting_star_caldarus
+shooting_star_celine shooting_star_eiland shooting_star_hayden
+shooting_star_juniper shooting_star_march shooting_star_morning
+shooting_star_reina shooting_star_romantic shooting_star_ryis
+shooting_star_seridia shooting_star_solo shooting_star_valen sleep
+somethings_bugging_me spouse_delivery spring_festival_first_place
+spring_festival_first_place_plus spring_festival_morning
+spring_festival_no_place spring_festival_second_place spring_festival_setup
+spring_festival_setup_year_2 spring_festival_third_place stinky_stamina_potion
+stone_refinery_pt_1 stone_refinery_pt_2 stork_delivery tea_with_hayden
+the_animal_festival the_unusual_tree_pt_1 the_unusual_tree_pt_2
+translating_the_earth_tablet translating_the_fire_tablet
+translating_the_water_tablet unlocking_the_mines_pt_1 unlocking_the_mines_pt_2
+upgrade_the_carpenters_shop_pt_1 upgrade_the_carpenters_shop_pt_2
+upgrade_the_saturday_market upgrade_the_saturday_market_plaza
+valen_eight_hearts valen_four_hearts valen_six_hearts valen_ten_hearts
+valen_two_hearts water_seal wedding`.split(/\s+/);
 
 const PATTERNS = [
   'season_weather_cutscene','season_cutscene','weather_cutscene','cutscene',
@@ -259,6 +300,36 @@ const VALUES = {
   inout: ['indoor','outdoor'],
   daynumber: Array.from({length:28},(_,i)=>String(i+1)),
 };
+
+/* ------------------------------------------------------------------ spoilers
+   DeUlo lists both vocabularies behind spoiler tags: the locations as "some
+   late-game / secret spots", the cutscenes as heavy story spoilers including
+   the mines quest. Every cutscene name is therefore hidden by default, and the
+   locations are split - the everyday map stays available, because a tool where
+   you cannot pick `farm` without opting into spoilers is a worse tool.
+
+   The lists themselves are never filtered, only what the dropdowns offer: a tag
+   already chosen stays valid and keeps working, and the dead-trigger maths
+   still counts all 78 locations whether or not they are on screen. */
+const SPOILER_LOCATIONS = new Set(`abandoned_mines abandoned_pit aldaria
+beach_secret caldarus_house dragonsworn_glade dungeon earth_seal fire_seal
+narrows_secret priestess_quarters ruins_seal seridias_chamber seridias_house
+seridias_house_back terithias_house void_seal water_seal
+western_ruins`.split(/\s+/));
+
+let spoilers = false;
+
+// What the Value dropdown offers for a kind. The card's own value is always
+// included even when it is a spoiler, so unticking the box can never silently
+// drop a trigger someone already built.
+function valuesFor(kind, keep){
+  const all = VALUES[kind];
+  if (!all || spoilers) return all;
+  if (kind === 'cutscene') return all.filter(v => v === keep);
+  if (kind === 'location')
+    return all.filter(v => !SPOILER_LOCATIONS.has(v) || v === keep);
+  return all;
+}
 
 const SLOTS = 8;                       // hard constraint: the game has 8 presets
 const TARGET_H = 180;                  // DEULO_FP_VANILLA_PORTRAIT_H -> fit 1.0
@@ -301,7 +372,7 @@ let saveNote = '';
 function saveState(){
   if (restoring) return;
   try {
-    localStorage.setItem(STORE, JSON.stringify({v:1, current,
+    localStorage.setItem(STORE, JSON.stringify({v:1, current, spoilers,
       slots: slots.map(s => ({cards: s.cards.map(c => ({
         name:c.name, url:c.url, isDefault:c.isDefault, season:c.season,
         weather:c.weather, kind:c.kind, value:c.value,
@@ -336,6 +407,10 @@ function restoreState(){
   });
   if (Number.isInteger(data.current) && data.current >= 0 && data.current < SLOTS)
     current = data.current;
+  // Remembered so nobody has to opt in twice, but never inferred from the board:
+  // restoring a build that uses a cutscene does not turn the names back on.
+  spoilers = !!data.spoilers;
+  $('spoilers').checked = spoilers;
   restoring = false;
   // Decoding is async, so a card is "still loading" for a frame or two. Export
   // is gated on card.img, not card.url, so it cannot race ahead of this.
@@ -572,12 +647,17 @@ function makeCard(card, idx){
     isDefault.checked = card.isDefault;
     fSeason.value  = card.season;
     fWeather.value = card.weather;
+    // Both dropdowns are rebuilt here rather than once at creation, because the
+    // spoiler toggle changes what they may offer. A kind or value the card is
+    // already using is kept whatever the toggle says.
+    fill(fKind, KINDS.filter(k => k[0] !== 'cutscene'
+      || spoilers || card.kind === 'cutscene'), null);
     fKind.value    = card.kind;
-    const hasValues = !!VALUES[card.kind];
-    fill(fValue, hasValues ? VALUES[card.kind] : [], 'select...');
-    fValue.value = hasValues ? card.value : '';
+    const opts = valuesFor(card.kind, card.value);
+    fill(fValue, opts || [], 'select...');
+    fValue.value = opts ? card.value : '';
     fSeason.disabled = fWeather.disabled = fKind.disabled = card.isDefault;
-    fValue.disabled = card.isDefault || !hasValues;
+    fValue.disabled = card.isDefault || !opts;
 
     preview.className = 'preview' + (card.url ? ' filled' : '');
     preview.innerHTML = card.url ? `<img src="${card.url}" alt="">`
@@ -629,6 +709,15 @@ function removeCard(idx){
 // Nothing in the build path reads this.
 $('flip').onchange = () =>
   $('wrap').classList.toggle('flipped', $('flip').checked);
+
+// Names only, but they are the names of story beats, so this is off until asked
+// for and remembered once it is. Nothing downstream reads it: a trigger built
+// with the box ticked is an ordinary trigger.
+$('spoilers').onchange = () => {
+  spoilers = $('spoilers').checked;
+  repaintCards();
+  render();
+};
 
 // Work persists across reloads, so there has to be a way back to empty.
 $('reset').onclick = () => {

@@ -85,7 +85,7 @@ class El {
 
 const byId = new Map();
 for (const id of ['grid','flip','export','status','afterExport','picker',
-                  'slotHead','cards','addCard','wrap','reset'])
+                  'slotHead','cards','addCard','wrap','reset','spoilers'])
   byId.set(id, new El('div'));
 
 // Enough of a localStorage to prove the round trip, and a switch to make it
@@ -122,7 +122,7 @@ const T = {};
 new Function('__T', script + `
   Object.assign(__T, {makeZip, crc32, processImage, toNative, finish, buildFiles,
     statusOf, tagOf, validate, advisories, presetsNeeded, everyCard, slots, cells,
-    shadowed, covered, regionOf,
+    shadowed, covered, regionOf, valuesFor, SPOILER_LOCATIONS, LOCATIONS, CUTSCENES,
     render, select, buildCards, acceptFiles, loadInto, restoreState, saveState,
     STORE, PATTERNS, TARGET_H, MOD_DIR, $});
 `)(T);
@@ -574,6 +574,52 @@ ok('an ordinary board reports nothing', deadTags().length === 0,
    JSON.stringify(deadTags()));
 ok('naming a few of eighty locations covers nothing',
    T.covered({}, [{location:'beach'}, {location:'farm'}]) === false);
+
+/* 12. spoiler options — names that give away story beats stay off until asked */
+console.log('\nspoilers');
+T.$('reset').onclick();
+T.select(0);
+const kinds = () => ctl(0,0).fKind.options.map(o => o.value);
+const vals  = () => ctl(0,0).fValue.options.map(o => o.value).filter(Boolean);
+
+ok('the box is off to begin with', T.$('spoilers').checked !== true);
+ok('cutscene is not even offered as a condition', !kinds().includes('cutscene'));
+set(0, 0, 'fKind', 'location');
+ok('everyday locations are there', vals().includes('farm') && vals().includes('town'));
+ok('late-game and secret ones are not',
+   !vals().includes('aldaria') && !vals().includes('void_seal')
+   && !vals().includes('beach_secret'));
+ok('and that is the whole difference',
+   vals().length === T.LOCATIONS.length - T.SPOILER_LOCATIONS.size,
+   `${vals().length} of ${T.LOCATIONS.length}`);
+
+T.$('spoilers').checked = true;
+T.$('spoilers').onchange();
+ok('ticking it adds the locations back', vals().length === T.LOCATIONS.length);
+ok('and offers cutscenes', kinds().includes('cutscene'));
+set(0, 0, 'fKind', 'cutscene');
+ok('all 187 of them', vals().length === T.CUTSCENES.length,
+   `${vals().length} of ${T.CUTSCENES.length}`);
+
+// The one that would quietly break a build: unticking must not drop a trigger
+// somebody already made, so the card's own value survives the filter.
+set(0, 0, 'fValue', 'unlocking_the_mines_pt_1');
+T.$('spoilers').checked = false;
+T.$('spoilers').onchange();
+ok('a spoiler trigger already built still holds',
+   T.tagOf(T.slots[0].cards[0]) === 'unlocking_the_mines_pt_1' &&
+   T.statusOf(T.slots[0].cards[0]).state === 'ok');
+ok('its card keeps offering the kind and the value',
+   kinds().includes('cutscene') && vals().includes('unlocking_the_mines_pt_1'));
+ok('but nothing else spoilery comes back',
+   T.valuesFor('cutscene', 'unlocking_the_mines_pt_1').length === 1);
+ok('the lists themselves are never filtered',
+   T.CUTSCENES.length === 187 && T.LOCATIONS.length === 78);
+
+T.$('spoilers').checked = true; T.$('spoilers').onchange();
+T.render();
+T.restoreState();
+ok('the choice survives a reload', T.$('spoilers').checked === true);
 
 /* start over has to actually empty the board, or saved work is a trap */
 T.$('reset').onclick();

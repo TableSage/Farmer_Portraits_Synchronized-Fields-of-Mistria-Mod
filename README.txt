@@ -49,7 +49,10 @@
        more condition. Tick "use as default" on exactly one.
     c. "+ Add another portrait to this slot" puts more in the
        same slot.
-    d. Click "Finish and export".
+    d. Cutscene triggers, and the late-game and secret places,
+       are hidden until you tick "include spoiler options".
+       Names only, but they give away story beats.
+    e. Click "Finish and export".
 
 
   3. INSTALL YOUR PORTRAITS
