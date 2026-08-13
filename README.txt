@@ -39,8 +39,9 @@
   -----------------------
     Open portrait_tool.html.
 
-    a. Drag your PNGs onto the slots.
-    b. Give each one a trigger: season / weather / plus one
+    a. Drag your PNGs onto the slots, or click a slot and use
+       "Upload" in the panel below.
+    b. Give each one a trigger like season / weather / plus one
        more condition. Tick "use as default" on exactly one.
     c. "+ Add another portrait to this slot" puts more in the
        same slot.
@@ -66,19 +67,18 @@
   IF SOMETHING LOOKS WRONG
   ------------------------
     Nothing changed
-      Artwork is baked in at install time. Hit Install again.
+      Artwork is baked in at install time. Open MOMI and hit
+      Install again.
 
     An old portrait keeps showing up
-      You merged instead of replacing. Delete the folder and
-      unzip again.
+      You may have merged instead of replacing. Delete the
+      FarmerPortraitsExample folder from your mods folder,
+      then unzip a fresh export into it.
 
     Portraits work, clothes don't
       You need as many outfit presets in game as the highest
       slot you used. A new farmer has only one - add more in
       the customization menu.
-
-    Still getting old artwork
-      Keep only ONE mods folder. MOMI may be reading the other.
 
     Everything faces the wrong way
       Turn "Face right" OFF in the Farmer Portraits settings.
