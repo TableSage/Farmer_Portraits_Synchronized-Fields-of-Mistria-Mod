@@ -41,7 +41,7 @@
 
     a. Drag your PNGs onto the slots, or click a slot and use
        "Upload" in the panel below.
-    b. Give each one a trigger like season / weather / plus one
+    b. Give each one a trigger: season / weather / plus one
        more condition. Tick "use as default" on exactly one.
     c. "+ Add another portrait to this slot" puts more in the
        same slot.
