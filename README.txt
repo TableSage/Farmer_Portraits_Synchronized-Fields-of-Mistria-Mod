@@ -31,8 +31,12 @@
 
   1. INSTALL THE OUTFIT MOD  (once, ever)
   ---------------------------------------
-    Drag FarmerPortraitsSync into your mods folder - the one
-    you point MOMI at, next to the "Farmer Portraits" folder.
+    Drag FarmerPortraitsSync into your game's mods folder,
+    next to the "Farmer Portraits" folder already there:
+
+        ...\steamapps\common\Fields of Mistria\mods\
+
+    That's the folder for every step below, too.
 
 
   2. BUILD YOUR PORTRAITS
