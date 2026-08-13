@@ -1,4 +1,4 @@
-# Farmer Portraits — Synchronized
+# Farmer Portraits Synchronized
 
 Custom dialogue portraits for Fields of Mistria that also change your farmer's
 outfit to match.
@@ -15,46 +15,58 @@ with whichever portrait is on screen.
 
 | | |
 |---|---|
-| `portrait_tool.html` | the builder. Open it in a browser — no install, no server, no network |
+| `portrait_tool.html` | the builder. Open it in a browser. No install, no server, no network |
 | `FarmerPortraitsSync/` | the outfit mod. Goes in your mods folder once |
 | `README.txt` | the instructions that ship with a release |
-| `test_tool.mjs` | headless test suite, `node test_tool.mjs` |
 
 ## You need
 
-- MOMI (the Mistria mod installer) and DeUlo's **Farmer Portraits** mod
-- Your portraits as PNG with a transparent background (Picrew exports work
-  as-is — the tool downsamples, mirrors and pads them for you)
+- [MOMI](https://www.nexusmods.com/fieldsofmistria/mods/78), the mod installer
+- [Farmer Portraits](https://www.nexusmods.com/fieldsofmistria/mods/703) by DeUlo
+- Portraits as PNG with a transparent background. This was built around
+  [this Picrew](https://picrew.me/en/image_maker/2750165/) by **not_darkly**,
+  whose exports work as they come: the tool downsamples, mirrors and pads them
+  for you
 
 ## How it works
 
-The grid has 8 slots, one per in-game outfit preset: the portrait in slot 3 goes
-with preset 3. Each slot can hold several portraits with different triggers that
-share one outfit — a winter coat covering `winter_rain`, `winter_sunny` and
-`winter_thunder`.
+**8 slots, one per in-game outfit preset.** Grid position is the preset number,
+so the portrait in slot 3 is worn with preset 3.
 
-A trigger is a season, a weather and one more condition (location, weekday, day
-of month, indoor/outdoor, or a cutscene). Only the combinations DeUlo's mod
-actually looks up are offered, and the test suite checks that list against the
-mod's own GML rather than against its readme — a tag off that list fails
-silently in game, which cannot be debugged from inside the game.
+**Several portraits can share a slot**, each with its own trigger, when one
+outfit should cover all of them:
 
-Cutscene names and the late-game or secret locations are hidden behind an
-**include spoiler options** checkbox, off by default — the names alone give away
-story beats, which is how DeUlo publishes them too.
+```
+   slot 3     winter_rain     \
+              winter_sunny     >  all wear outfit preset 3
+              winter_thunder  /
+```
 
-The mod takes the first matching trigger in its precedence order, so a portrait
-can end up unreachable: cover winter indoors and winter outdoors and a plain
-`winter` portrait has nothing left to appear in. The tool works that out and
-warns before you export.
+**A trigger is a season, a weather and one more condition:** location, weekday,
+day of month, indoor or outdoor, or a cutscene. Only the combinations the mod
+actually looks up are offered, checked against the mod's own code rather than
+its readme, because a tag off that list fails silently in game.
 
-Export downloads one zip holding one correctly named mod folder. The `tag → slot`
-table is generated *inside* that folder, so the clothes and the artwork are
-installed together and cannot fall out of step.
+**Spoiler names are off by default.** Cutscene names, and the late-game or
+secret locations, sit behind a checkbox. The names alone give away story beats,
+which is how DeUlo publishes them too.
+
+**Unreachable portraits are caught before export.** The mod takes the first
+matching trigger in its precedence order, so covering winter indoors and winter
+outdoors leaves a plain `winter` portrait with nothing to appear in. The tool
+works that out and says which tags buried it.
+
+**Export gives you one zip holding one correctly named mod folder.** The
+tag-to-slot table is generated inside that folder, so the clothes and the
+artwork install together and cannot fall out of step.
 
 ## Credits
 
-**Farmer Portraits** and **MOMI** are DeUlo's work; neither is included here.
-This project is not affiliated with DeUlo or with NPC Studio.
+**Farmer Portraits** is DeUlo's work and **MOMI** is the community mod
+installer. Neither is included here. Portrait art in the screenshots comes from
+[not_darkly's Picrew](https://picrew.me/en/image_maker/2750165/); whatever you
+build with it stays yours to check against that maker's own terms.
+
+Not affiliated with DeUlo, with not_darkly, or with NPC Studio.
 
 MIT licensed, see `LICENSE`.
