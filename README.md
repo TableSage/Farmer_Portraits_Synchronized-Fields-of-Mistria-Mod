@@ -3,9 +3,9 @@
 An 8-slot builder for the Farmer Portraits mod. Drop in Picrew exports, pick when
 each one should appear, export a ready-to-install mod folder.
 
-Grid position **is** the in-game preset slot: the portrait in slot 3 is meant to
-go with outfit preset 3. That mapping is what the companion GML mod will use to
-swap the mini-sprite's clothes to match the portrait on screen.
+Grid position **is** the in-game preset slot: the portrait in slot 3 goes with
+outfit preset 3. The generated companion mod uses that mapping to swap the
+mini-sprite's clothes to match the portrait on screen.
 
 **A slot holds more than one portrait.** The 8 caps *outfits*, not art — several
 triggers can share one in-game outfit, which is what you want when the same
@@ -26,31 +26,41 @@ Open `portrait_tool.html` in any browser. No install, no server, no network.
    slots, a drop on one tile fills that slot and adds cards for the extras
 2. Per portrait, build the trigger: season / weather / then one more condition.
    Exactly one portrait in the whole build gets **use as default?**
-3. **Finish and export to game** downloads `FarmerPortraitsExample.zip`
+3. **Finish and export to game** downloads `FarmerPortraitsExample.zip`, holding
+   `FarmerPortraitsExample\` (sprites), `FarmerPortraitsSync\` (the outfit mod)
+   and `INSTALL.bat`
 4. In your MOMI mods folder: **delete the whole `FarmerPortraitsExample` folder**,
-   then **Extract Here** the zip (its root is already `FarmerPortraitsExample\`)
-5. Open MOMI and hit Install — art is baked in at install time, so this is
-   required after every art change
+   then **Extract Here** the zip
+5. Open MOMI, enable **both** new mods, and hit Install — art is baked in at
+   install time, so this is required after every art change
 6. In game, build outfit presets 1–8 to match the slots
 
-`INSTALL.bat` in the zip automates step 4. Windows blocks scripts downloaded
+`INSTALL.bat` in the zip automates step 4 for both folders. Windows blocks scripts downloaded
 through a browser, so right-click it → Properties → tick **Unblock** before it
 will run. Replacing the folder by hand is equally safe and is the documented
 path; the script only saves the delete.
 
-### Where things live (get this wrong and nothing works)
+### Keep exactly one mods folder
 
-MOMI is the installer, and it owns two different folders:
+MOMI asks for **one** mods folder at startup and bakes the enabled mods straight
+into `<game>\assets.zip` (`assets.bak.zip` is its vanilla backup). It does *not*
+copy anything into `<game>\mods\` — that path is only special because it is a
+common thing to point MOMI at. This is DeUlo's instruction verbatim: *"Put the
+mods into your mods folder and install through MOMI."*
 
-| Folder | Who owns it | What it is |
-|---|---|---|
-| Your **mods library** — the folder MOMI asks for at startup | You | The source. One folder per mod, each with a `manifest.json` |
-| `<game>\mods\` | **MOMI** | Its output. MOMI copies the library here and tracks profiles in `momi_profiles.json` |
+So **do not keep two mods folders.** Installing from the wrong one produces no
+error at all — you get your previous art back and conclude the export failed.
+This cost an hour on 2026-08-12.
 
-Everything this tool produces goes in the **library**. Writing into the game
-folder appears to work and is then silently reverted by MOMI's next install.
-This matches DeUlo's own instruction — *"Put the mods into your mods folder and
-install through MOMI"* — where "your mods folder" is the library.
+Two ways to check, when something looks stale:
+
+```
+# which folder is MOMI actually reading? the one holding this file
+dir /s /b momi_profiles.json
+
+# what did it actually install?
+python -c "import zipfile; print([n for n in zipfile.ZipFile(r'<game>\assets.zip').namelist() if 'farmer_portrait' in n])"
+```
 
 ### Why step 4 says delete, not overwrite
 
@@ -144,6 +154,8 @@ same key that won the sprite, which is why the clothes can never disagree with
 the face on screen.
 
 **The one rule that matters: it acts only on the rising edge of dialogue.**
+(Verified in game — a Textbox instance lasts a whole conversation, so the outfit
+is applied once and does not re-assert between lines.)
 `ANCHOR.get_menu(Menu.Textbox)` going from `undefined` to a menu is a new
 conversation; that is the only moment the outfit is touched. Between
 conversations the wardrobe is entirely the player's — cycle presets, edit them in
