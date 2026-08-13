@@ -1,0 +1,11 @@
+# Local working notes: design record for the unbuilt companion mod, not part of
+# what ships. Kept on disk deliberately - read it before changing the tool.
+PORTRAIT_TOOL_PRD.md
+
+# Test artifact, rewritten by every `node test_tool.mjs` run.
+test_zip.zip
+
+# Exports land here if you extract them in place.
+FarmerPortraitsExample/
+INSTALL.bat
+*.zip

@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Farmer Portraits — Preset Builder</title>
+<style>
+:root{
+  --page:#241d29; --frame:#f4e6ec; --panel:#fae3ea;
+  --panel-sub:#f0d3de; --frame-sub:#dcbecb;
+  --edge:#3a2b35; --pill:#f6c6d7; --pill-edge:#e099b6;
+  --ink:#4a2f3d; --ink-dim:#75596a; --on-page:#efdfe7;
+  --tile:#ece3f0; --tile-edge:#a08fa8; --tile-on:#d6c8e0;
+  --ok:#3f7d52; --bad:#b23c3c;
+}
+*{box-sizing:border-box}
+body{margin:0;padding:22px 20px 48px;background:var(--page);color:var(--ink);
+  font:500 15px/1.45 system-ui,"Segoe UI",Inter,Helvetica,Arial,sans-serif}
+/* Sized to hug the 4-wide grid (4x116 + gaps = 506px) rather than to fill the
+   window, so the top card has no dead margin. */
+.wrap{max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+#cards{display:flex;flex-direction:column;gap:16px}
+
+.panel{background:var(--panel);border:3px solid var(--edge);border-radius:14px;
+  padding:16px 18px}
+/* Editor cards sit beneath the top card: same border, darker fill, so they
+   read as nested without a second frame competing for attention. */
+.card{background:var(--panel-sub);position:relative;padding:14px 18px}
+
+.grid{display:grid;grid-template-columns:repeat(4,116px);gap:12px 14px;
+  justify-content:center}
+.cell{display:flex;flex-direction:column;gap:5px;cursor:pointer}
+.tile{aspect-ratio:9/16;background:var(--tile);border:2px solid var(--tile-edge);
+  border-radius:3px;display:flex;align-items:center;justify-content:center;
+  overflow:hidden;position:relative}
+.cell.sel .tile{background:var(--tile-on);border-color:var(--edge);
+  box-shadow:inset 0 0 0 1px var(--edge)}
+.cell.drop .tile{border-color:var(--ok);background:#dff0e2}
+.tile img{max-width:100%;max-height:100%;image-rendering:pixelated;display:block}
+/* A stacked slot draws two solid sheets behind the front one. Everything here
+   is opaque with its own dark border: a translucent shadow would show the
+   portrait's own transparency through it and read as mud, and the front sheet
+   needs a hard edge or its top border vanishes into the layer behind. */
+.tile .lyr,.tile .sheet{position:absolute;left:5%;top:3%;width:80%;height:84%;
+  background:var(--tile-on);border:2px solid var(--edge);border-radius:2px;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.tile .lyr.back{transform:translate(15%,9%)}
+.tile .lyr.mid{transform:translate(7.5%,4.5%)}
+.tile .sheet{background:var(--tile)}
+/* The number sits over artwork now that slots can be stacked, so it needs its
+   own opaque chip rather than bare text. */
+.tile .num{position:absolute;top:0;left:0;font-size:12px;font-weight:700;
+  color:var(--ink);background:#fff;padding:0 5px;z-index:2;
+  border-right:2px solid var(--edge);border-bottom:2px solid var(--edge);
+  border-bottom-right-radius:5px}
+.tile .count{position:absolute;bottom:3px;right:3px;font-size:12px;font-weight:700;
+  color:#fff;background:var(--ok);border-radius:9px;padding:1px 7px;z-index:2}
+.tile .empty{font-size:13px;color:var(--ink-dim);text-align:center;padding:0 8px}
+.cap{text-align:center;font-size:13px;line-height:1.3;min-height:2.6em;
+  overflow-wrap:anywhere}
+/* Tag names are identifiers that end up in filenames, so they stay monospace
+   while the rest of the UI is sans - the contrast is doing hierarchy work. */
+.cap b{color:var(--ok);font-weight:700;
+  font-family:ui-monospace,Consolas,"Courier New",monospace}
+.cap i{color:var(--bad);font-style:normal;font-weight:600}
+.cap s{color:var(--ink-dim);text-decoration:none}
+
+.slotHead{font-size:23px;font-weight:700;color:var(--on-page);margin:4px 0 -6px;
+  letter-spacing:-.01em}
+.detail{display:grid;grid-template-columns:186px 1fr;gap:38px;align-items:start}
+/* Checkerboard, so a background the user forgot to remove in Picrew is obvious
+   here rather than in game. The portrait fills the box edge to edge - any
+   padding would read as transparent margin the sprite doesn't actually have.
+   Width, height and border-width are all fixed across both states: anything
+   that changes between empty and filled shows up as a jump on upload. */
+.preview{width:186px;height:330px;border:3px dashed var(--tile-edge);
+  border-radius:3px;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;cursor:pointer;overflow:hidden;text-align:center;
+  background-color:#f4eef6;background-size:16px 16px;
+  background-position:0 0,8px 8px;
+  background-image:
+    linear-gradient(45deg,#cdc0d3 25%,transparent 25%,transparent 75%,#cdc0d3 75%),
+    linear-gradient(45deg,#cdc0d3 25%,transparent 25%,transparent 75%,#cdc0d3 75%)}
+.preview.filled{border-style:solid}
+.preview img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;
+  display:block}
+.preview .arrow{font-size:32px;line-height:1;color:var(--ink-dim)}
+.preview .lbl{font-size:13px;font-weight:700;letter-spacing:.06em;
+  color:var(--ink-dim);margin-top:6px}
+
+/* Matching the preview's height lets the tag and filename sit at the bottom of
+   the card instead of floating right under the last dropdown. */
+.fields{display:flex;flex-direction:column;gap:9px;min-height:330px}
+.field{display:grid;grid-template-columns:112px 1fr;gap:10px;align-items:center}
+.field label{font-size:14px;font-weight:600;color:var(--ink)}
+select{font:inherit;font-size:14px;font-weight:500;padding:6px 9px;
+  border:2px solid var(--tile-edge);border-radius:4px;background:#fff;
+  color:var(--ink);width:100%}
+select:disabled{background:#e7dce2;color:var(--ink-dim)}
+.chk{display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600;
+  padding-right:30px}
+.chk span{font-weight:500}
+.chk input{width:17px;height:17px;accent-color:#c06a92}
+.tagline{font-size:14px;font-weight:600;margin-top:auto;min-height:1.6em}
+.tagline code{font-size:15px;font-weight:700}
+.tagline .ok{color:var(--ok)} .tagline .bad{color:var(--bad)}
+.filename{font-size:12px;color:var(--ink-dim);overflow-wrap:anywhere;
+  min-height:1.3em}
+
+/* Flex-centred rather than line-height-centred: the multiplication sign sits
+   above the text baseline, so line-height alone leaves it visibly high. */
+.del{position:absolute;top:8px;right:10px;width:26px;height:26px;padding:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;line-height:1;border-radius:6px;border:2px solid var(--tile-edge);
+  background:var(--tile);color:var(--ink-dim);cursor:pointer}
+.del:hover{background:#f3d5d5;border-color:var(--bad);color:var(--bad)}
+
+.foot{margin-top:16px}
+.foot button{width:100%}
+button{font:inherit;font-size:15px;font-weight:700;padding:10px 20px;border-radius:8px;
+  border:3px solid var(--pill-edge);background:var(--pill);color:var(--ink);cursor:pointer}
+button:hover:not(:disabled){background:#f9d5e2}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.plain{border-color:var(--tile-edge);background:var(--tile);font-weight:600;
+  font-size:13px;padding:7px 13px}
+button.add{width:100%;border-style:dashed;background:transparent;
+  color:var(--on-page);border-color:#6b5265}
+button.add:hover:not(:disabled){background:#332838}
+/* One problem per line, under the button. Joined with separators they ran to
+   three wrapped lines and none of them were scannable. */
+#status{display:block;font-size:14px;font-weight:600;margin-top:10px}
+#status .line{padding:1px 0}
+#status .bad{color:var(--bad)} #status .ok{color:var(--ok)}
+.note{font-size:13px;color:var(--ink-dim);margin:12px 0 0;line-height:1.6}
+.note b{color:var(--ink);font-weight:700}
+.gridfoot{display:flex;justify-content:space-between;align-items:flex-end;
+  gap:16px;flex-wrap:wrap}
+.gridfoot .note{margin-bottom:0}
+.toggle{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;
+  color:var(--ink);white-space:nowrap;cursor:pointer;user-select:none}
+.toggle input{width:16px;height:16px;accent-color:#c06a92;cursor:pointer}
+/* Display-only. The export mirrors unconditionally - this just previews it, so
+   it must never be read back when building. */
+#wrap.flipped .tile img, #wrap.flipped .preview img{transform:scaleX(-1)}
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+
+  <div class="panel">
+    <div class="grid" id="grid"></div>
+    <div class="gridfoot">
+      <p class="note">Drop PNGs here to fill empty slots. Click a slot to edit it.<br>
+        <b>Slot number = in-game preset slot.</b></p>
+      <label class="toggle" title="The export always mirrors; this only changes what you see here.">
+        <input type="checkbox" id="flip"> Preview flipped images</label>
+    </div>
+    <div class="foot">
+      <button id="export">Finish and export to game</button>
+      <span id="status"></span>
+    </div>
+    <p class="note" id="afterExport" style="display:none"></p>
+  </div>
+
+  <h2 class="slotHead" id="slotHead">Slot 1</h2>
+  <div id="cards"></div>
+  <button class="add" id="addCard">+ Add another portrait to this slot</button>
+
+</div>
+<input type="file" id="picker" accept="image/png,.png" multiple style="display:none">
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ data
+   Vocabulary and the precedence list are transcribed from the mod. PATTERNS
+   must stay identical to deulo_farmer_portraits_keys() in FarmerPortraits.gml;
+   check_patterns.py in this folder diffs the two and is the thing to run after
+   any edit here. An off-list tag is never looked up in game and fails silently,
+   which is undebuggable without this check.                                  */
+
+const SEASONS = ['spring','summer','fall','winter'];
+const WEATHER = ['sunny','rain','thunder','special'];
+const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+
+const LOCATIONS = `abandoned_mines abandoned_pit adelines_bedroom adelines_office aldaria
+balors_room bathhouse bathhouse_bath bathhouse_bedroom bathhouse_change_room beach
+beach_secret blacksmith_room_left blacksmith_room_right blacksmith_store caldarus_house
+celines_room clinic_b1 clinic_f1 clinic_f2 deep_woods dells_bedroom dragonsworn_glade
+dungeon earth_seal eastern_road eilands_bedroom eilands_office elsies_bedroom
+errols_bedroom farm fire_seal general_store_home general_store_store haydens_bedroom
+haydens_farm haydens_house holt_and_noras_bedroom inn jo_and_hemlocks_room
+landens_house_f1 landens_house_f2 large_barn large_coop large_greenhouse lucs_room
+manor_house_dining_room manor_house_entry maples_room medium_barn medium_coop mill
+mines_entry museum_entry narrows narrows_secret player_home player_home_east
+player_home_north player_home_upper_central player_home_upper_east
+player_home_upper_west player_home_west priestess_quarters reinas_room ruins_seal
+seridias_chamber seridias_house seridias_house_back small_barn small_coop
+small_greenhouse summit terithias_house town void_seal water_seal
+western_ruins`.split(/\s+/);
+
+const CUTSCENES = `adeline_eight_hearts adeline_four_hearts adeline_quest_board
+adeline_six_hearts adeline_ten_hearts adeline_two_hearts arena arena_end
+balor_eight_hearts balor_four_hearts balor_six_hearts balor_ten_hearts
+balor_two_hearts bathhouse bathhouse_date beach_date beach_secret big_chicken
+caldarus_eight_hearts caldarus_recovery caldarus_ten_hearts celine_eight_hearts
+celine_four_hearts celine_six_hearts celine_ten_hearts celine_two_hearts crafting
+day_zero deep_woods_picnic_date dying eiland_eight_hearts eiland_four_hearts
+eiland_six_hearts eiland_ten_hearts eiland_two_hearts elsie_dating_tutorial
+engagement_tutorial farm_introduction full_restore gem_cutting_date
+harvest_festival_dance harvest_festival_first_place harvest_festival_morning
+harvest_festival_no_place harvest_festival_second_place harvest_festival_setup
+harvest_festival_third_place hayden_eight_hearts hayden_four_hearts hayden_six_hearts
+hayden_ten_hearts hayden_two_hearts inn_meal_date jos_cooking_class
+juniper_eight_hearts juniper_four_hearts juniper_six_hearts juniper_ten_hearts
+juniper_two_hearts march_eight_hearts march_four_hearts march_six_hearts
+march_ten_hearts march_two_hearts mistril_rank park_date pet_arrival pet_dream
+prologue reina_eight_hearts reina_four_hearts reina_six_hearts reina_ten_hearts
+reina_two_hearts ryis_eight_hearts ryis_four_hearts ryis_six_hearts ryis_ten_hearts
+ryis_two_hearts seridia_eight_hearts seridia_ten_hearts shooting_star_morning
+shooting_star_romantic shooting_star_solo sleep spouse_delivery
+spring_festival_first_place spring_festival_morning spring_festival_no_place
+spring_festival_second_place spring_festival_setup spring_festival_third_place
+the_animal_festival valen_eight_hearts valen_four_hearts valen_six_hearts
+valen_ten_hearts valen_two_hearts wedding`.split(/\s+/);
+
+const PATTERNS = [
+  'season_weather_cutscene','season_cutscene','weather_cutscene','cutscene',
+  'season_weather_location','season_weather_inout','season_weather_day',
+  'season_weather','season_location','season_inout','season_daynumber',
+  'season_day','season','weather_location','weather','day','location',
+  'inout','default',
+];
+
+const KINDS = [['','(nothing more)'],['day','Weekday'],['daynumber','Day of month'],
+  ['location','Location'],['inout','Indoor / outdoor'],['cutscene','Cutscene']];
+
+const VALUES = {
+  day: DAYS, location: LOCATIONS, cutscene: CUTSCENES,
+  inout: ['indoor','outdoor'],
+  daynumber: Array.from({length:28},(_,i)=>String(i+1)),
+};
+
+const SLOTS = 8;                       // hard constraint: the game has 8 presets
+const TARGET_H = 180;                  // DEULO_FP_VANILLA_PORTRAIT_H -> fit 1.0
+const MOD_DIR = 'FarmerPortraitsExample';
+
+/* ----------------------------------------------------------------- state
+   A slot is a list of portraits, not one portrait. Several tags can point at
+   the same in-game outfit - "my winter coat covers all four winter weathers" -
+   so the tag is what varies and the slot number is what they share. */
+
+const blank = () => ({file:null, url:'', img:null,
+  isDefault:false, season:'', weather:'', kind:'', value:''});
+const slots = Array.from({length:SLOTS}, () => ({cards:[blank()]}));
+let current = 0;
+// Shown on the status line until the next file lands. Rejections have to say
+// something: a dropped .jpg that vanishes silently reads as a broken tool.
+let notice = '';
+
+const everyCard = () =>
+  slots.flatMap((s, slot) => s.cards.map((card, idx) => ({card, slot, idx})));
+
+/* --------------------------------------------------------------- tag logic
+   Ported verbatim from make_mapping.py, which is validated and in use. */
+
+function shapeOf(c){
+  if (c.isDefault) return (c.season || c.weather || c.kind) ? 'x' : 'default';
+  const parts = [];
+  if (c.season) parts.push('season');
+  if (c.weather) parts.push('weather');
+  if (c.kind) parts.push(c.kind);
+  return parts.join('_');
+}
+function tagOf(c){
+  if (c.isDefault) return 'default';
+  return [c.season, c.weather, c.kind ? c.value : ''].filter(Boolean).join('_');
+}
+function statusOf(c){
+  if (!c.isDefault && !c.season && !c.weather && !c.kind)
+    return {state:'empty', msg:'no trigger set'};
+  if (c.kind && VALUES[c.kind] && !c.value)
+    return {state:'bad', msg:'pick a value'};
+  if (!PATTERNS.includes(shapeOf(c)))
+    return {state:'bad', msg:'not a valid combination'};
+  return {state:'ok', tag:tagOf(c)};
+}
+
+/* ------------------------------------------------------------------- dom */
+
+const $ = id => document.getElementById(id);
+function el(tag, cls, html){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+function fill(select, opts, blankLabel){
+  select.innerHTML = '';
+  if (blankLabel !== null) select.append(new Option(blankLabel, ''));
+  for (const o of opts){
+    const [v,l] = Array.isArray(o) ? o : [o, o.replace(/_/g,' ')];
+    select.append(new Option(l, v));
+  }
+}
+
+/* -------------------------------------------------------------- the grid */
+
+const grid = $('grid');
+const cells = [];
+for (let i = 0; i < SLOTS; i++){
+  const cell = el('div', 'cell',
+    `<div class="tile"><span class="num">${i+1}</span>`
+    + `<span class="empty">empty</span></div><div class="cap"></div>`);
+  cell.onclick = () => select(i);
+  grid.append(cell);
+  cells.push(cell);
+}
+
+function select(i){
+  current = i;
+  buildCards();
+  render();
+}
+
+/* ------------------------------------------------------- the editor cards
+   Rebuilt only when the selection or the card count changes. Editing a
+   dropdown updates state and re-renders the grid, but leaves these elements
+   alone, so nothing steals focus mid-edit. */
+
+function buildCards(){
+  const host = $('cards');
+  host.innerHTML = '';
+  $('slotHead').textContent = `Slot ${current+1}`;
+  slots[current].cards.forEach((card, idx) => host.append(makeCard(card, idx)));
+}
+
+function makeCard(card, idx){
+  const box = el('div', 'panel card');
+  const detail = el('div', 'detail');
+  const preview = el('div', 'preview');
+  const fields = el('div', 'fields');
+
+  // Only offer removal while a spare exists; a slot with no portrait at all
+  // would export a tag pointing at nothing.
+  if (slots[current].cards.length > 1){
+    const del = el('button', 'del', '&times;');
+    del.title = 'Remove this portrait';
+    del.onclick = e => { e.stopPropagation(); removeCard(idx); };
+    box.append(del);
+  }
+
+  const chk = el('label', 'chk');
+  const isDefault = document.createElement('input');
+  isDefault.type = 'checkbox';
+  chk.title = 'Shown whenever nothing more specific matches. One per build.';
+  chk.append(isDefault, el('span', '', 'use as default?'));
+  fields.append(chk);
+
+  const mk = (labelText, opts, blankLabel) => {
+    const row = el('div', 'field');
+    const lab = el('label', '', labelText);
+    const sel = document.createElement('select');
+    fill(sel, opts, blankLabel);
+    row.append(lab, sel);
+    fields.append(row);
+    return sel;
+  };
+  const fSeason  = mk('Season', SEASONS, 'any season');
+  const fWeather = mk('Weather', WEATHER, 'any weather');
+  const fKind    = mk('Then one of', KINDS, null);
+  const fValue   = mk('Value', [], 'select...');
+
+  const tagline  = el('div', 'tagline');
+  const filename = el('div', 'filename');
+  fields.append(tagline, filename);
+
+  detail.append(preview, fields);
+  box.append(detail);
+
+  function readBack(){
+    card.isDefault = isDefault.checked;
+    card.season  = fSeason.value;
+    card.weather = fWeather.value;
+    card.kind    = fKind.value;
+    card.value   = fValue.value;
+    // The mod matches exactly one default across the whole build, so ticking
+    // this box has to clear it everywhere else, not just in this slot.
+    if (card.isDefault){
+      card.season = card.weather = card.kind = card.value = '';
+      everyCard().forEach(x => { if (x.card !== card) x.card.isDefault = false; });
+    }
+  }
+  function paint(){
+    isDefault.checked = card.isDefault;
+    fSeason.value  = card.season;
+    fWeather.value = card.weather;
+    fKind.value    = card.kind;
+    const hasValues = !!VALUES[card.kind];
+    fill(fValue, hasValues ? VALUES[card.kind] : [], 'select...');
+    fValue.value = hasValues ? card.value : '';
+    fSeason.disabled = fWeather.disabled = fKind.disabled = card.isDefault;
+    fValue.disabled = card.isDefault || !hasValues;
+
+    preview.className = 'preview' + (card.url ? ' filled' : '');
+    preview.innerHTML = card.url ? `<img src="${card.url}" alt="">`
+      : '<div class="arrow">&#11014;</div><div class="lbl">UPLOAD</div>';
+    filename.textContent = card.file ? card.file.name : '';
+    const st = statusOf(card);
+    tagline.innerHTML = st.state === 'ok'
+      ? `Tag: <code class="ok">${st.tag}</code>`
+      : `<span class="bad">⚠ ${st.msg}</span>`;
+  }
+
+  [isDefault, fSeason, fWeather, fKind, fValue].forEach(c => {
+    c.onchange = () => { readBack(); repaintCards(); render(); };
+  });
+  preview.onclick = () => { pickTarget = card; $('picker').click(); };
+
+  card._paint = paint;
+  // Handles for test_tool.mjs, which drives these the way a user would. The
+  // controls live in this closure, so without them the card is untestable.
+  card._els = {isDefault, fSeason, fWeather, fKind, fValue,
+               preview, tagline, filename};
+  paint();
+  return box;
+}
+
+// Ticking default in one card clears it in the others, so every visible card
+// has to be repainted, not just the one that changed.
+const repaintCards = () =>
+  slots[current].cards.forEach(c => c._paint && c._paint());
+
+$('addCard').onclick = () => {
+  slots[current].cards.push(blank());
+  buildCards();
+  render();
+};
+function removeCard(idx){
+  if (slots[current].cards.length < 2) return;
+  const [gone] = slots[current].cards.splice(idx, 1);
+  if (gone.url) URL.revokeObjectURL(gone.url);
+  buildCards();
+  render();
+}
+
+// Purely a viewing aid: Picrew art faces right, the game shows it mirrored.
+// Nothing in the build path reads this.
+$('flip').onchange = () =>
+  $('wrap').classList.toggle('flipped', $('flip').checked);
+
+/* ---------------------------------------------------------------- render */
+
+function render(){
+  slots.forEach((s, i) => {
+    const cell = cells[i];
+    cell.classList.toggle('sel', i === current);
+    const shown = s.cards.find(c => c.url);
+    const tile = cell.querySelector('.tile');
+    const stacked = s.cards.length > 1 && !!shown;
+    tile.classList.toggle('stacked', stacked);
+    // Back and mid sheets come first so they paint underneath; no z-index games.
+    const art = !shown ? '<span class="empty">empty</span>'
+      : stacked ? '<span class="lyr back"></span><span class="lyr mid"></span>'
+                  + `<span class="sheet"><img src="${shown.url}" alt=""></span>`
+      : `<img src="${shown.url}" alt="">`;
+    const body = `<span class="num">${i+1}</span>`
+      + (s.cards.length > 1 ? `<span class="count">&times;${s.cards.length}</span>` : '')
+      + art;
+    // Only touch the DOM when it actually changed; rewriting innerHTML on every
+    // dropdown change re-creates the <img> and makes the whole grid flicker.
+    if (tile.innerHTML !== body) tile.innerHTML = body;
+    cell.querySelector('.cap').innerHTML = s.cards.map(c => {
+      const st = statusOf(c);
+      return st.state === 'ok'  ? `<b>${st.tag}</b>`
+           : st.state === 'bad' ? `<i>${st.msg}</i>`
+           :                      `<s>${st.msg}</s>`;
+    }).join('<br>');
+  });
+
+  const problems = validate();
+  // The notice is reported but never blocks export - a rejected stray file is
+  // not a reason to keep the button dead once every portrait is valid.
+  const msgs = notice ? [notice, ...problems] : problems;
+  $('status').innerHTML = msgs.length
+    ? msgs.map(m => `<div class="line bad">⚠ ${m}</div>`).join('')
+    : `<div class="line ok">✓ ${everyCard().length} portraits ready</div>`;
+  $('export').disabled = problems.length > 0;
+}
+
+function validate(){
+  const out = [];
+  const all = everyCard();
+  const noImage = all.filter(x => !x.card.file).length;
+  if (noImage) out.push(`${noImage} portrait(s) need an image`);
+  const bad = all.filter(x => statusOf(x.card).state !== 'ok').length;
+  if (bad) out.push(`${bad} portrait(s) need a valid trigger`);
+  const defs = all.filter(x => x.card.isDefault).length;
+  if (defs !== 1) out.push(defs === 0
+    ? 'no portrait marked as default (the mod requires one)'
+    : `${defs} portraits marked default (only one allowed)`);
+  // Two cards with the same tag would write the same sprite file twice, and the
+  // second slot number would silently win.
+  const tags = all.filter(x => statusOf(x.card).state === 'ok').map(x => tagOf(x.card));
+  const dupes = [...new Set(tags.filter((t,i) => tags.indexOf(t) !== i))];
+  if (dupes.length) out.push('duplicate tags: ' + dupes.join(', '));
+  return out;
+}
+
+/* ------------------------------------------------------------------ files */
+
+function loadInto(card, file){
+  if (card.url) URL.revokeObjectURL(card.url);
+  card.file = file;
+  card.url = URL.createObjectURL(file);
+  const im = new Image();
+  im.onload = () => { card.img = im; repaintCards(); render(); };
+  // Extension alone is a weak check; a renamed file fails to decode here.
+  im.onerror = () => {
+    Object.assign(card, {file:null, url:'', img:null});
+    notice = `${file.name} is not a readable PNG`;
+    repaintCards(); render();
+  };
+  im.src = card.url;
+}
+
+// Dropping several files on one slot fills it and then adds cards for the rest,
+// which is the quick path to "one outfit, four weathers".
+function acceptInto(slot, files){
+  const s = slots[slot];
+  files.forEach((f, n) => {
+    if (n === 0) loadInto(s.cards[0], f);
+    else { const c = blank(); s.cards.push(c); loadInto(c, f); }
+  });
+  if (files.length > 1 && slot === current) buildCards();
+}
+function acceptFiles(files, slot){
+  const list = [...files].filter(f => /\.png$/i.test(f.name));
+  const rejected = files.length - list.length;
+  notice = rejected ? `${rejected} file(s) ignored — PNG only` : '';
+  if (!list.length){ render(); return; }
+  if (slot !== undefined){ acceptInto(slot, list); return; }
+  // A drop on the panel background spreads across slots that are still empty.
+  let n = 0;
+  for (let i = 0; i < SLOTS && n < list.length; i++)
+    if (!slots[i].cards[0].file) loadInto(slots[i].cards[0], list[n++]);
+}
+
+let pickTarget = null;
+$('picker').onchange = e => {
+  const f = [...e.target.files].filter(x => /\.png$/i.test(x.name));
+  notice = e.target.files.length - f.length
+    ? `${e.target.files.length - f.length} file(s) ignored — PNG only` : '';
+  if (f.length && pickTarget) loadInto(pickTarget, f[0]);
+  e.target.value = '';
+  render();
+};
+
+document.addEventListener('dragover', e => e.preventDefault());
+document.addEventListener('drop', e => e.preventDefault());
+cells.forEach((cell, i) => {
+  cell.addEventListener('dragover', e => { e.preventDefault(); cell.classList.add('drop'); });
+  cell.addEventListener('dragleave', () => cell.classList.remove('drop'));
+  cell.addEventListener('drop', e => {
+    e.preventDefault(); e.stopPropagation();
+    cell.classList.remove('drop');
+    select(i);
+    acceptFiles(e.dataTransfer.files, i);
+    render();
+  });
+});
+grid.addEventListener('drop', e => {
+  e.preventDefault(); acceptFiles(e.dataTransfer.files); render();
+});
+
+/* -------------------------------------------------------- image pipeline
+   Ported from build_portrait.py. Every step is an exact pixel operation:
+   detect the nearest-neighbour upscale factor, take one pixel per block,
+   mirror, and pad. No resampling anywhere, so the result is pixel-perfect. */
+
+function imageDataOf(img){
+  const c = document.createElement('canvas');
+  c.width = img.naturalWidth || img.width;
+  c.height = img.naturalHeight || img.height;
+  c.getContext('2d').drawImage(img, 0, 0);
+  return c.getContext('2d').getImageData(0, 0, c.width, c.height);
+}
+
+function nativeScale(d){
+  const {width:w, height:h, data:p} = d;
+  let best = 1;
+  outer:
+  for (let n = 2; n <= 16; n++){
+    if (w % n || h % n) continue;
+    for (let y = 0; y < h; y++){
+      const by = y - (y % n);
+      for (let x = 0; x < w; x++){
+        const i = (y*w + x)*4, j = (by*w + (x - x%n))*4;
+        if (p[i]!==p[j] || p[i+1]!==p[j+1] || p[i+2]!==p[j+2] || p[i+3]!==p[j+3])
+          continue outer;
+      }
+    }
+    best = n;
+  }
+  return best;
+}
+
+// Downsample, mirror and pad in a single pass. Padding goes on TOP: the sprite
+// origin is top-left and the character sits flush to the bottom of the Picrew
+// frame, so anchoring the bottom is what keeps portraits from jumping.
+function processImage(img){
+  const d = imageDataOf(img);
+  const n = nativeScale(d);
+  const nw = d.width / n, nh = d.height / n;
+  if (nh > TARGET_H)
+    throw new Error(`image is ${nh}px tall at native scale, taller than ${TARGET_H}`);
+  let opaque = true;
+  const c = document.createElement('canvas');
+  c.width = nw; c.height = TARGET_H;
+  const ctx = c.getContext('2d');
+  const out = ctx.createImageData(nw, TARGET_H);
+  const pad = TARGET_H - nh;
+  for (let y = 0; y < nh; y++){
+    for (let x = 0; x < nw; x++){
+      const si = ((y*n)*d.width + (nw-1-x)*n) * 4;     // mirrored source pixel
+      const di = ((y+pad)*nw + x) * 4;
+      out.data[di]   = d.data[si];
+      out.data[di+1] = d.data[si+1];
+      out.data[di+2] = d.data[si+2];
+      out.data[di+3] = d.data[si+3];
+      if (d.data[si+3] === 0) opaque = false;
+    }
+  }
+  ctx.putImageData(out, 0, 0);
+  return {canvas:c, w:nw, h:TARGET_H, scale:n, opaque};
+}
+
+const TOML = (w,h) => `[meta_properties]
+asset_kind = "Animation"
+
+[asset_properties]
+frame_size = [${w}, ${h}]
+frame_len = 1
+atlas = "Npc"
+`;
+
+/* ------------------------------------------------------------------- zip
+   Stored (uncompressed) entries only. A stored zip is just per-file headers
+   plus the raw bytes, so this is shorter than pulling in a zip library and
+   keeps the tool a single file. PNGs are already compressed anyway. */
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++){
+    let c = i;
+    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+    t[i] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(u8){
+  let c = 0xFFFFFFFF;
+  for (let i = 0; i < u8.length; i++) c = CRC_TABLE[(c ^ u8[i]) & 0xFF] ^ (c >>> 8);
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+function makeZip(files){
+  const enc = new TextEncoder();
+  const parts = [], central = [];
+  let offset = 0;
+  for (const f of files){
+    const name = enc.encode(f.name), crc = crc32(f.data), size = f.data.length;
+    const lh = new Uint8Array(30 + name.length);
+    const v = new DataView(lh.buffer);
+    v.setUint32(0, 0x04034b50, true);
+    v.setUint16(4, 20, true);                 // version needed
+    v.setUint16(8, 0, true);                  // method 0 = stored
+    v.setUint16(10, 0, true);                 // time
+    v.setUint16(12, 0x21, true);              // date = 1980-01-01
+    v.setUint32(14, crc, true);
+    v.setUint32(18, size, true);
+    v.setUint32(22, size, true);
+    v.setUint16(26, name.length, true);
+    lh.set(name, 30);
+    parts.push(lh, f.data);
+
+    const ch = new Uint8Array(46 + name.length);
+    const w = new DataView(ch.buffer);
+    w.setUint32(0, 0x02014b50, true);
+    w.setUint16(4, 20, true);                 // version made by
+    w.setUint16(6, 20, true);                 // version needed
+    w.setUint16(10, 0, true);                 // method 0 = stored
+    w.setUint16(12, 0, true);
+    w.setUint16(14, 0x21, true);
+    w.setUint32(16, crc, true);
+    w.setUint32(20, size, true);
+    w.setUint32(24, size, true);
+    w.setUint16(28, name.length, true);
+    w.setUint32(42, offset, true);
+    ch.set(name, 46);
+    central.push(ch);
+    offset += lh.length + size;
+  }
+  const cdSize = central.reduce((a,c) => a + c.length, 0);
+  const eocd = new Uint8Array(22);
+  const e = new DataView(eocd.buffer);
+  e.setUint32(0, 0x06054b50, true);
+  e.setUint16(8, files.length, true);
+  e.setUint16(10, files.length, true);
+  e.setUint32(12, cdSize, true);
+  e.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, eocd], {type:'application/zip'});
+}
+
+/* ---------------------------------------------------------------- export */
+
+const canvasBytes = canvas => new Promise(res =>
+  canvas.toBlob(b => b.arrayBuffer().then(a => res(new Uint8Array(a))), 'image/png'));
+
+async function buildFiles(){
+  const enc = new TextEncoder();
+  const dir = `${MOD_DIR}/animations/FarmerPortraits/`;
+  const files = [], outfits = {}, warnings = [];
+  for (const {card, slot} of everyCard()){
+    const tag = tagOf(card);
+    const r = processImage(card.img);
+    if (r.opaque) warnings.push(`${tag} has no transparency`);
+    files.push({name: `${dir}spr_farmer_portrait_${tag}.png`,
+                data: await canvasBytes(r.canvas)});
+    files.push({name: `${dir}spr_farmer_portrait_${tag}.meta.toml`,
+                data: enc.encode(TOML(r.w, r.h))});
+    // Many tags can share one slot; that is the point of multiple cards.
+    outfits[tag] = slot;
+  }
+  // The companion mod reads this. Slot indices are 0-based to match
+  // ARI.presets.get(n); the comment travels with the file so the GML side
+  // has one place to check if that ever turns out to be off by one.
+  files.push({name: `${MOD_DIR}/outfit_slots.json`, data: enc.encode(JSON.stringify({
+    _comment: '0-based preset index, as passed to obj_ari.change_preset(n)',
+    slots: outfits,
+  }, null, 2) + '\n')});
+  files.push({name: `${MOD_DIR}/manifest.json`, data: enc.encode(MANIFEST)});
+  // Sits beside the mod folder, not inside it, so it never ships into mods\.
+  files.push({name: 'INSTALL.bat', data: enc.encode(INSTALLER)});
+  return {files, warnings};
+}
+
+$('export').onclick = async () => {
+  if (validate().length) return;
+  const st = $('status');
+  st.innerHTML = '<div class="line">building...</div>';
+  try {
+    const {files, warnings} = await buildFiles();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(makeZip(files));
+    a.download = `${MOD_DIR}.zip`;
+    a.click();
+
+    st.innerHTML = `<div class="line ok">✓ exported ${files.length} files</div>`;
+    const after = $('afterExport');
+    after.style.display = '';
+    after.innerHTML =
+      `<b>Next steps</b><br>`
+      + `1. Extract the whole zip anywhere &mdash; the folder does not matter.<br>`
+      + `2. Double-click <b>INSTALL.bat</b> and drag your MOMI mods folder onto it. `
+      + `It replaces the old portraits there; nothing changes until you confirm.<br>`
+      + `3. Open MOMI and hit <b>Install</b>. Art is baked in at install time.<br>`
+      + `4. In game, build outfit presets 1&ndash;8 to match the slots above.`
+      + (warnings.length
+          ? `<br><br><b>Warning:</b> ${warnings.join('; ')}. Re-export from Picrew `
+            + `with transparency on.`
+          : '');
+  } catch (err){
+    st.innerHTML = `<div class="line bad">⚠ ${err.message}</div>`;
+    throw err;
+  }
+};
+
+/* Installer. It writes into the user's MOMI mods library - the folder MOMI asks
+   for at startup - and never into the game directory. MOMI owns the game
+   directory: it copies the library in on install and manages profiles there, so
+   anything written straight to the game is silently reverted by the next
+   install. The library path is not recorded anywhere on disk, so the user
+   supplies it and we validate it by the presence of the required base mod.
+   A browser cannot delete files, which is why stale-sprite cleanup lives here.
+   CRLF throughout: cmd.exe mis-parses LF-only batch files. */
+const INSTALLER = [
+  '@echo off',
+  'setlocal',
+  'set "MOD=' + MOD_DIR + '"',
+  'set "ART=animations\\FarmerPortraits"',
+  'set "BASE=Farmer Portraits"',
+  '',
+  'echo  Farmer Portraits - portrait installer',
+  'echo  =====================================',
+  'echo.',
+  'echo  This copies your portraits into your MOMI mods folder - the same',
+  'echo  folder you point MOMI at when it starts. It is the one that already',
+  'echo  contains a "%BASE%" folder.',
+  'echo.',
+  'echo  It does NOT touch the game itself. MOMI does that when you hit',
+  'echo  Install, which keeps your profiles working.',
+  'echo.',
+  'set /p LIB="  Drag that folder onto this window, then press Enter: "',
+  'set LIB=%LIB:"=%',
+  '',
+  'if not defined LIB (echo. & echo No folder given - nothing was changed. & pause & exit /b 1)',
+  '',
+  'rem Validated by the base mod, which has to be there anyway for any of this',
+  'rem to work - so a wrong folder and a missing dependency give one clear error.',
+  'if not exist "%LIB%\\%BASE%\\manifest.json" (',
+  '  echo.',
+  '  echo  No "%BASE%" mod found in:',
+  '  echo    %LIB%',
+  '  echo.',
+  '  echo  Either that is not your MOMI mods folder, or you have not installed',
+  '  echo  the Farmer Portraits mod itself yet - this is only the artwork for it.',
+  '  echo  Nothing was changed.',
+  '  pause',
+  '  exit /b 1',
+  ')',
+  'if not exist "%~dp0%MOD%\\manifest.json" (',
+  '  echo.',
+  '  echo  Cannot find the %MOD% folder next to this script.',
+  '  echo  Extract the whole zip first, then run this from the extracted folder.',
+  '  pause',
+  '  exit /b 1',
+  ')',
+  '',
+  'echo.',
+  'echo  Mods folder: %LIB%',
+  'echo.',
+  'echo  This will REPLACE the portraits in:',
+  'echo    %LIB%\\%MOD%\\%ART%',
+  'echo.',
+  'set /p OK="  Type Y and press Enter to continue: "',
+  'if /i not "%OK%"=="Y" (echo. & echo Cancelled - nothing was changed. & pause & exit /b)',
+  '',
+  'rem Delete first: extracting over the folder would leave old sprites behind,',
+  'rem and a stale tag can outrank a new one and appear to break the export.',
+  'if exist "%LIB%\\%MOD%\\%ART%" rmdir /s /q "%LIB%\\%MOD%\\%ART%"',
+  'xcopy "%~dp0%MOD%" "%LIB%\\%MOD%" /e /i /y >nul',
+  'if errorlevel 1 (',
+  '  echo.',
+  '  echo  Copy failed - is the folder open somewhere, or read-only?',
+  '  pause',
+  '  exit /b 1',
+  ')',
+  '',
+  'echo.',
+  'echo  Done. Now open MOMI, point it at that same folder, and hit Install.',
+  'echo  The art is baked in at install time, so that step is required.',
+  'echo.',
+  'pause',
+  '',
+].join('\r\n');
+
+const MANIFEST = JSON.stringify({
+  name: 'Farmer Portraits Sprites Example',
+  author: 'DeUlo',
+  version: '1.0.0',
+  description: 'Shows a portrait of the farmer during dialogue, varying by season, weather, day, and location.',
+  minInstallerVersion: '0.13.0',
+  manifestVersion: 1,
+  requires_hooks: [],
+}, null, 4) + '\n';
+
+buildCards();
+render();
+</script>
+</body>
+</html>
