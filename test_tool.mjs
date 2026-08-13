@@ -582,9 +582,18 @@ T.select(0);
 const kinds = () => ctl(0,0).fKind.options.map(o => o.value);
 const vals  = () => ctl(0,0).fValue.options.map(o => o.value).filter(Boolean);
 
+const blank0 = () => ctl(0,0).fValue.options[0].label;
+
 ok('the box is off to begin with', T.$('spoilers').checked !== true);
-ok('cutscene is not even offered as a condition', !kinds().includes('cutscene'));
+ok('cutscene is still offered as a condition', kinds().includes('cutscene'));
+set(0, 0, 'fKind', 'cutscene');
+ok('but it has nothing in it', vals().length === 0);
+ok('and the blank row says why',
+   blank0() === 'enable spoiler options to see', blank0());
 set(0, 0, 'fKind', 'location');
+ok('a partly filtered list counts what is missing instead',
+   blank0() === `select... (${T.SPOILER_LOCATIONS.size} more with spoilers)`,
+   blank0());
 ok('everyday locations are there', vals().includes('farm') && vals().includes('town'));
 ok('late-game and secret ones are not',
    !vals().includes('aldaria') && !vals().includes('void_seal')
@@ -596,6 +605,7 @@ ok('and that is the whole difference',
 T.$('spoilers').checked = true;
 T.$('spoilers').onchange();
 ok('ticking it adds the locations back', vals().length === T.LOCATIONS.length);
+ok('and the hint goes back to plain', blank0() === 'select...', blank0());
 ok('and offers cutscenes', kinds().includes('cutscene'));
 set(0, 0, 'fKind', 'cutscene');
 ok('all 187 of them', vals().length === T.CUTSCENES.length,
@@ -611,6 +621,9 @@ ok('a spoiler trigger already built still holds',
    T.statusOf(T.slots[0].cards[0]).state === 'ok');
 ok('its card keeps offering the kind and the value',
    kinds().includes('cutscene') && vals().includes('unlocking_the_mines_pt_1'));
+ok('and does not nag about the rest once one is chosen',
+   blank0() === `select... (${T.CUTSCENES.length - 1} more with spoilers)`,
+   blank0());
 ok('but nothing else spoilery comes back',
    T.valuesFor('cutscene', 'unlocking_the_mines_pt_1').length === 1);
 ok('the lists themselves are never filtered',

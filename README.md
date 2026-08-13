@@ -39,7 +39,7 @@ actually looks up are offered, and the test suite checks that list against the
 mod's own GML rather than against its readme — a tag off that list fails
 silently in game, which cannot be debugged from inside the game.
 
-Cutscene triggers and the late-game or secret locations are hidden behind an
+Cutscene names and the late-game or secret locations are hidden behind an
 **include spoiler options** checkbox, off by default — the names alone give away
 story beats, which is how DeUlo publishes them too.
 

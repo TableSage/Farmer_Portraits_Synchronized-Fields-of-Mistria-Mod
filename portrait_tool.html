@@ -319,6 +319,16 @@ western_ruins`.split(/\s+/));
 
 let spoilers = false;
 
+// The blank row doubles as the explanation when the toggle is what emptied the
+// list. Picking Cutscene with spoilers off otherwise just looks broken.
+function hintFor(kind, opts){
+  if (!VALUES[kind] || !opts) return 'select...';
+  const hidden = VALUES[kind].length - opts.length;
+  if (!hidden) return 'select...';
+  return opts.length ? `select... (${hidden} more with spoilers)`
+                     : 'enable spoiler options to see';
+}
+
 // What the Value dropdown offers for a kind. The card's own value is always
 // included even when it is a spoiler, so unticking the box can never silently
 // drop a trigger someone already built.
@@ -650,11 +660,13 @@ function makeCard(card, idx){
     // Both dropdowns are rebuilt here rather than once at creation, because the
     // spoiler toggle changes what they may offer. A kind or value the card is
     // already using is kept whatever the toggle says.
-    fill(fKind, KINDS.filter(k => k[0] !== 'cutscene'
-      || spoilers || card.kind === 'cutscene'), null);
+    // Cutscene stays on the list even with spoilers off - the word is not the
+    // spoiler, the names are, and hiding the whole condition reads as the tool
+    // being broken rather than as a choice the user can make.
+    fill(fKind, KINDS, null);
     fKind.value    = card.kind;
     const opts = valuesFor(card.kind, card.value);
-    fill(fValue, opts || [], 'select...');
+    fill(fValue, opts || [], hintFor(card.kind, opts));
     fValue.value = opts ? card.value : '';
     fSeason.disabled = fWeather.disabled = fKind.disabled = card.isDefault;
     fValue.disabled = card.isDefault || !opts;
