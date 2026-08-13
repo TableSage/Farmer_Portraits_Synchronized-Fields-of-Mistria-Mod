@@ -62,11 +62,13 @@ body{margin:0;padding:24px 20px 56px;background:var(--page);color:var(--ink);
 .cap i{color:var(--bad);font-style:normal}
 .cap s{color:var(--dim);text-decoration:none;font-weight:400}
 
-/* The two headings on the dark page, same treatment at two sizes. */
-.pageHead,.slotHead{font-weight:600;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--on-page)}
-.pageHead{margin:0 0 -2px;font-size:23px}
-.slotHead{margin:6px 0 -4px;font-size:17px}
+/* The two headings on the dark page, same treatment at two sizes. Title case
+   with the tracking pulled back in: letterspacing is a fix for capitals, and at
+   these sizes normal words want slightly less than default, not more. They both
+   grow a step to hold the same weight on the page that the capitals did. */
+.pageHead,.slotHead{font-weight:600;letter-spacing:-.01em;color:var(--on-page)}
+.pageHead{margin:0 0 -2px;font-size:27px}
+.slotHead{margin:6px 0 -4px;font-size:20px}
 /* Preview, then the trigger in two columns, then tag and warnings on the right
    where they can be scanned down a stack of cards. */
 .detail{display:grid;grid-template-columns:142px 1fr 232px;gap:22px;
