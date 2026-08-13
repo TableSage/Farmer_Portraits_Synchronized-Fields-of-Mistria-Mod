@@ -84,6 +84,12 @@
       slot you used. A new farmer has only one - add more in
       the customization menu.
 
+    One portrait never shows up
+      The tool warns about this before you export: a more
+      specific trigger always wins, so if you cover winter
+      indoors and winter outdoors, a plain "winter" portrait
+      has nothing left to appear in. Widen it or drop it.
+
     Everything faces the wrong way
       Turn "Face right" OFF in the Farmer Portraits settings.
       The tool already mirrors for you.

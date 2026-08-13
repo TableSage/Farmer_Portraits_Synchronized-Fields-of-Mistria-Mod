@@ -58,6 +58,7 @@ body{margin:0;padding:24px 20px 56px;background:var(--page);color:var(--ink);
 .cap b,.cap i,.cap s{display:block;font-weight:600;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cap b{color:var(--ok);font-family:ui-monospace,Consolas,"Courier New",monospace}
+.cap b.dead{color:var(--warn);text-decoration:line-through}
 .cap i{color:var(--bad);font-style:normal}
 .cap s{color:var(--dim);text-decoration:none;font-weight:400}
 
@@ -104,6 +105,9 @@ select:disabled{background:#ece2e8;color:var(--dim)}
 .tagline code{display:block;padding:5px 8px;border:1px solid var(--ok);
   border-radius:5px;color:var(--ok);font-size:13px;overflow-wrap:anywhere}
 .tagline .bad{color:var(--bad);font-size:13px;font-weight:600}
+/* A tag that is valid but unreachable: it exports, it just never shows up. */
+.tagline code.dead{border-color:var(--warn);color:var(--warn)}
+.tagline .warn{display:block;margin-top:4px;color:var(--warn);font-size:12px}
 .filename{font-size:12px;color:var(--dim);overflow-wrap:anywhere}
 
 /* Flex-centred rather than line-height-centred, then nudged: the multiplication
@@ -363,9 +367,101 @@ function statusOf(c){
   return {state:'ok', tag:tagOf(c)};
 }
 
+/* ----------------------------------------------------------- dead triggers
+   The mod walks the keys in PATTERNS order and takes the first one that has a
+   sprite, so a trigger is only reached where nothing above it matched. In
+   DeUlo's list every shape outranks the shapes it extends, so no single trigger
+   can hide another - deadness always comes from a SET. winter_indoor and
+   winter_outdoor between them leave no winter context over, and a plain
+   `winter` card is then art that can never appear in game.
+
+   Context dimensions are treated as independent, which they are not - the beach
+   is always outdoor, day 8 is always the same weekday. That only ever invents
+   contexts the game cannot produce, and a cover holding over the larger set
+   holds over the real one, so this can miss a dead trigger but not invent one. */
+
+// How many values each dimension can take. cutscene gets one more than the list
+// because "no cutscene" is the usual case and is a context like any other.
+const DIMS = {season:SEASONS.length, weather:WEATHER.length, day:DAYS.length,
+  daynumber:28, location:LOCATIONS.length, inout:2, cutscene:CUTSCENES.length+1};
+
+// A card as the context values it demands; anything unlisted it does not care
+// about. Same fields as the tag, which is why kind doubles as the dimension.
+function regionOf(c){
+  const r = {};
+  if (c.isDefault) return r;
+  if (c.season) r.season = c.season;
+  if (c.weather) r.weather = c.weather;
+  if (c.kind) r[c.kind] = c.value;
+  return r;
+}
+
+// Stands in for every value nobody named. Spaces and brackets are not legal in
+// any tag, so it can never collide with a real one.
+const OTHER = '(any other)';
+
+// Is every context inside `target` claimed by one of `regions`?
+function covered(target, regions){
+  const free = {};
+  for (const r of regions) for (const d in r)
+    if (!(d in target)) (free[d] = free[d] || new Set()).add(r[d]);
+  const dims = Object.keys(free);
+  // One stand-in for every value nobody named. A rival has to name a value to
+  // match it, so an unnamed value is a context still going spare - which is why
+  // naming three of eighty locations covers nothing.
+  const doms = dims.map(d => {
+    const vals = [...free[d]];
+    return vals.length < DIMS[d] ? vals.concat([OTHER]) : vals;
+  });
+  const total = doms.reduce((n, d) => n * d.length, 1);
+  if (total > 20000) return false;   // absurd board; say nothing rather than hang
+  for (let n = 0; n < total; n++){
+    const ctx = Object.assign({}, target);
+    let k = n;
+    dims.forEach((d, i) => {
+      ctx[d] = doms[i][k % doms[i].length];
+      k = (k / doms[i].length) | 0;
+    });
+    if (!regions.some(r => Object.keys(r).every(d => r[d] === ctx[d]))) return false;
+  }
+  return true;
+}
+
+// card -> {slot, by} for every card the rest of the build leaves nothing to do.
+function shadowed(){
+  const cards = everyCard()
+    .filter(x => statusOf(x.card).state === 'ok')
+    .map(x => Object.assign({rank: PATTERNS.indexOf(shapeOf(x.card)),
+                             region: regionOf(x.card)}, x));
+  const out = new Map();
+  for (const b of cards){
+    // Only cards that outrank this one, and only where they agree with it: a
+    // rival naming a different season is looking at another day entirely.
+    let rivals = cards.filter(a => a.rank < b.rank && Object.keys(b.region)
+      .every(d => !(d in a.region) || a.region[d] === b.region[d]));
+    if (!rivals.length || !covered(b.region, rivals.map(r => r.region))) continue;
+    // Name the tags that actually did it, not everything ranked above it.
+    for (const r of rivals.slice()){
+      const less = rivals.filter(x => x !== r);
+      if (less.length && covered(b.region, less.map(x => x.region))) rivals = less;
+    }
+    out.set(b.card, {slot: b.slot, by: rivals.map(r => tagOf(r.card))});
+  }
+  return out;
+}
+
+// Recomputed once per paint rather than per card: cheap, but it reads the whole
+// board, and both the grid and the editor cards need the same answer.
+let dead = new Map();
+
 /* ------------------------------------------------------------------- dom */
 
 const $ = id => document.getElementById(id);
+// Everything else written into a status line comes from a fixed vocabulary, but
+// filenames come from the user's disk and are reported verbatim, so they get
+// escaped: a PNG named after an <img onerror=...> would otherwise run it.
+const esc = s => String(s).replace(/[&<>]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 function el(tag, cls, html){
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -407,6 +503,7 @@ function select(i){
 
 function buildCards(){
   const host = $('cards');
+  dead = shadowed();
   host.innerHTML = '';
   $('slotHead').textContent = `Slot ${current+1}`;
   slots[current].cards.forEach((card, idx) => host.append(makeCard(card, idx)));
@@ -487,9 +584,12 @@ function makeCard(card, idx){
       : '<div class="arrow">&#11014;</div><div class="lbl">UPLOAD</div>';
     filename.textContent = card.name;
     const st = statusOf(card);
-    tagline.innerHTML = st.state === 'ok'
-      ? `<code>${st.tag}</code>`
-      : `<span class="bad">⚠ ${st.msg}</span>`;
+    const d = dead.get(card);
+    tagline.innerHTML = st.state !== 'ok'
+      ? `<span class="bad">⚠ ${st.msg}</span>`
+      : `<code${d ? ' class="dead"' : ''}>${st.tag}</code>`
+        + (d ? `<span class="warn">⚠ never appears: ${d.by.join(', ')} `
+             + `${d.by.length > 1 ? 'cover' : 'covers'} every context it would</span>` : '');
   }
 
   [isDefault, fSeason, fWeather, fKind, fValue].forEach(c => {
@@ -508,8 +608,10 @@ function makeCard(card, idx){
 
 // Ticking default in one card clears it in the others, so every visible card
 // has to be repainted, not just the one that changed.
-const repaintCards = () =>
+const repaintCards = () => {
+  dead = shadowed();
   slots[current].cards.forEach(c => c._paint && c._paint());
+};
 
 $('addCard').onclick = () => {
   slots[current].cards.push(blank());
@@ -545,6 +647,9 @@ function render(){
   // First, so that a browser refusing to store gets to say so on this pass
   // rather than the next one.
   saveState();
+  // Every path here paints the cards first, but this is what the grid and the
+  // status lines read, and it is the last thing to run in all of them.
+  dead = shadowed();
   slots.forEach((s, i) => {
     const cell = cells[i];
     cell.classList.toggle('sel', i === current);
@@ -564,7 +669,7 @@ function render(){
     if (tile.innerHTML !== body) tile.innerHTML = body;
     cell.querySelector('.cap').innerHTML = s.cards.map(c => {
       const st = statusOf(c);
-      return st.state === 'ok'  ? `<b>${st.tag}</b>`
+      return st.state === 'ok'  ? `<b${dead.has(c) ? ' class="dead"' : ''}>${st.tag}</b>`
            : st.state === 'bad' ? `<i>${st.msg}</i>`
            :                      `<s>${st.msg}</s>`;
     }).join('');
@@ -577,7 +682,7 @@ function render(){
   const lines = [
     ...[notice, saveNote].filter(Boolean).map(m => `<div class="line warn">⚠ ${m}</div>`),
     ...problems.map(m => `<div class="line bad">⚠ ${m}</div>`),
-    ...advisories().map(m => `<div class="line warn">⚠ ${m}</div>`),
+    ...advisories(dead).map(m => `<div class="line warn">⚠ ${m}</div>`),
   ];
   if (!problems.length)
     lines.push(`<div class="line ok">✓ ${everyCard().length} portraits ready</div>`);
@@ -596,7 +701,9 @@ function presetsNeeded(){
 // gap case is the one that bites: a fresh farmer has ONE preset and they are
 // created in order, so mapping slot 6 while slot 3 is empty still means building
 // a throwaway preset 3 in game before preset 6 exists at all.
-function advisories(){
+// The dead-trigger map is passed in so render() computes it once, but it
+// defaults to a fresh one: this has to be answerable from the board alone.
+function advisories(d = shadowed()){
   const out = [];
   const used = new Set(everyCard()
     .filter(x => statusOf(x.card).state === 'ok').map(x => x.slot));
@@ -608,6 +715,11 @@ function advisories(){
   for (let i = 0; i < need; i++) if (!used.has(i)) gaps.push(i + 1);
   if (gaps.length) out.push(`slot ${gaps.join(', ')} unused, but slot ${need} is. `
     + `You still have to build ${need} outfit presets in game`);
+  // Warns rather than blocks: the export is correct, it just carries a portrait
+  // the game will never reach, and half-built boards hit this on the way past.
+  for (const [card, x] of d)
+    out.push(`slot ${x.slot+1} "${tagOf(card)}" never appears: ${x.by.join(', ')} `
+      + `${x.by.length > 1 ? 'cover' : 'covers'} every context it would`);
   return out;
 }
 
@@ -658,7 +770,7 @@ function loadInto(card, file){
     URL.revokeObjectURL(src);
     let nat;
     try { nat = toNative(im); }
-    catch (err){ notice = `${file.name}: ${err.message}`; repaintCards(); render(); return; }
+    catch (err){ notice = `${esc(file.name)}: ${err.message}`; repaintCards(); render(); return; }
     card.name = file.name;
     card.url = nat.canvas.toDataURL('image/png');
     attach(card);
@@ -666,7 +778,7 @@ function loadInto(card, file){
   // Extension alone is a weak check; a renamed file fails to decode here.
   im.onerror = () => {
     URL.revokeObjectURL(src);
-    notice = `${file.name} is not a readable PNG`;
+    notice = `${esc(file.name)} is not a readable PNG`;
     repaintCards(); render();
   };
   im.src = src;
@@ -961,7 +1073,7 @@ $('export').onclick = async () => {
             + `with transparency on.`
           : '');
   } catch (err){
-    st.innerHTML = `<div class="line bad">⚠ ${err.message}</div>`;
+    st.innerHTML = `<div class="line bad">⚠ ${esc(err.message)}</div>`;
     throw err;
   }
 };

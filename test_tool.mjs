@@ -10,6 +10,9 @@
  * companion mod and installer are well formed.
  */
 import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+const here = path.dirname(fileURLToPath(import.meta.url));
 
 const html = fs.readFileSync(new URL('./portrait_tool.html', import.meta.url), 'utf8');
 const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
@@ -119,6 +122,7 @@ const T = {};
 new Function('__T', script + `
   Object.assign(__T, {makeZip, crc32, processImage, toNative, finish, buildFiles,
     statusOf, tagOf, validate, advisories, presetsNeeded, everyCard, slots, cells,
+    shadowed, covered, regionOf,
     render, select, buildCards, acceptFiles, loadInto, restoreState, saveState,
     STORE, PATTERNS, TARGET_H, MOD_DIR, $});
 `)(T);
@@ -167,10 +171,18 @@ ok('19 patterns', T.PATTERNS.length === 19, `got ${T.PATTERNS.length}`);
    on it is never looked up in game - it fails silently, which cannot be
    debugged from inside the game. So the list is checked against the function
    that actually builds the keys, not against the readme's summary of it. */
+// Wherever DeUlo's mod happens to live. FARMER_PORTRAITS_GML is the answer on a
+// machine that keeps its games somewhere else - the rest are only guesses, and
+// the earlier absolute entry here was one that could never match on a clone.
+const REL = 'mods/Farmer Portraits/gml/FarmerPortraits.gml';
 const GML_PATHS = [
-  '../SageMistriaMods/mods/Farmer Portraits/gml/FarmerPortraits.gml',
-  'D:/Steam/steamapps/common/Fields of Mistria/mods/Farmer Portraits/gml/FarmerPortraits.gml',
-];
+  process.env.FARMER_PORTRAITS_GML,
+  path.resolve(here, `../SageMistriaMods/${REL}`),
+  ...['C:', 'D:', 'E:'].flatMap(d => [
+    `${d}/Steam/steamapps/common/Fields of Mistria/${REL}`,
+    `${d}/Program Files (x86)/Steam/steamapps/common/Fields of Mistria/${REL}`,
+  ]),
+].filter(Boolean);
 const FIELDS = {season:'season', weather:'weather', cutscene:'cutscene',
   location:'location', inout:'inout', day:'day', dom:'daynumber'};
 
@@ -193,13 +205,15 @@ function patternsFromGml(text){
   return out;
 }
 
-const gmlPath = GML_PATHS
-  .map(p => new URL(p, import.meta.url))
-  .find(u => fs.existsSync(u));
+const gmlPath = GML_PATHS.find(p => fs.existsSync(p));
 if (!gmlPath){
-  console.log('  SKIP  PATTERNS vs GML — FarmerPortraits.gml not found');
+  // Counts as a failure, not a skip: this is the check that catches a tag the
+  // game will never look up, and one that quietly disappears is worse than none.
+  console.log('  FAIL  PATTERNS vs GML — FarmerPortraits.gml not found');
+  console.log('        Point at it with FARMER_PORTRAITS_GML=<path to '
+    + 'FarmerPortraits.gml>');
   console.log('        (checked: ' + GML_PATHS.join(', ') + ')');
-  fails++;      // a silently skipped correctness check is not a pass
+  fails++;
 } else {
   const fromGml = patternsFromGml(fs.readFileSync(gmlPath, 'utf8'));
   ok('PATTERNS matches deulo_farmer_portraits_keys() exactly',
@@ -517,6 +531,49 @@ T.slots.forEach((s, i) => { s.cards = stash[i]; });
 T.render();
 ok('no advice once the slots are contiguous', T.advisories().length === 0,
    JSON.stringify(T.advisories()));
+
+/* 11. dead triggers — art that exports fine and can never be reached in game */
+console.log('\ndead triggers');
+const mkCard = o => Object.assign({name:'', url:'', img:null, isDefault:false,
+  season:'', weather:'', kind:'', value:''}, o);
+// One card per slot, empties left as they are so they drop out of the analysis.
+const board = list => T.slots.forEach((s, i) => { s.cards = [mkCard(list[i] || {})]; });
+const deadTags = () => [...T.shadowed().entries()].map(([c]) => T.tagOf(c));
+
+board([{season:'winter'},
+       {season:'winter', kind:'inout', value:'indoor'},
+       {season:'winter', kind:'inout', value:'outdoor'}]);
+ok('indoor + outdoor leave the plain season nothing',
+   JSON.stringify(deadTags()) === '["winter"]', JSON.stringify(deadTags()));
+ok('the covering tags are named, and only those',
+   JSON.stringify(T.shadowed().get(T.slots[0].cards[0]).by.sort())
+     === '["winter_indoor","winter_outdoor"]');
+ok('it reads as a warning line, not a blocking problem',
+   T.advisories().some(m => m.includes('never appears')) &&
+   !T.validate().some(m => m.includes('never appears')));
+
+board([{season:'winter'}, {season:'winter', kind:'inout', value:'indoor'}]);
+ok('half a cover is not a cover', deadTags().length === 0, JSON.stringify(deadTags()));
+
+board([{season:'winter'}, {season:'winter', weather:'rain'},
+       {season:'winter', weather:'sunny'}, {season:'winter', weather:'thunder'},
+       {season:'winter', weather:'special'}]);
+ok('all four weathers do it too', JSON.stringify(deadTags()) === '["winter"]',
+   JSON.stringify(deadTags()));
+
+// season outranks location, so four seasons bury any location card under them.
+board([{season:'spring'}, {season:'summer'}, {season:'fall'}, {season:'winter'},
+       {kind:'location', value:'beach'}, {isDefault:true}]);
+ok('a location under four seasons is unreachable',
+   JSON.stringify(deadTags().sort()) === '["beach","default"]',
+   JSON.stringify(deadTags()));
+
+board([{kind:'location', value:'beach'}, {kind:'location', value:'farm'},
+       {season:'winter', weather:'rain'}, {isDefault:true}]);
+ok('an ordinary board reports nothing', deadTags().length === 0,
+   JSON.stringify(deadTags()));
+ok('naming a few of eighty locations covers nothing',
+   T.covered({}, [{location:'beach'}, {location:'farm'}]) === false);
 
 /* start over has to actually empty the board, or saved work is a trap */
 T.$('reset').onclick();
