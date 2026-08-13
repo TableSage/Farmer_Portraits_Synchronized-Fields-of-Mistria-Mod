@@ -49,7 +49,7 @@
        more condition. Tick "use as default" on exactly one.
     c. "+ Add another portrait to this slot" puts more in the
        same slot.
-    d. Click "Finish and export to game".
+    d. Click "Finish and export".
 
 
   3. INSTALL YOUR PORTRAITS

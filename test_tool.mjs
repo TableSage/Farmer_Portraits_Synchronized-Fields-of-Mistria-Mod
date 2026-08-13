@@ -232,19 +232,11 @@ set(0, 1, 'fWeather', 'thunder');
 ok('the two cards carry different tags',
    T.tagOf(T.slots[0].cards[0]) === 'winter_rain' &&
    T.tagOf(T.slots[0].cards[1]) === 'winter_thunder');
-ok('stacked badge appears only with art',
-   !T.cells[0].querySelector('.tile').classList.contains('stacked'));
 T.slots[0].cards[0].url = 'blob:fake'; T.render();
-ok('stacked class set once a stacked slot has art',
-   T.cells[0].querySelector('.tile').classList.contains('stacked'));
 ok('count badge rendered',
    T.cells[0].querySelector('.tile').innerHTML.includes('class="count"'));
-ok('stack draws two sheets behind the front one',
-   (T.cells[0].querySelector('.tile').innerHTML.match(/class="lyr/g) || []).length === 2
-   && T.cells[0].querySelector('.tile').innerHTML.includes('class="sheet"'));
-ok('the sheets paint before the image in DOM order',
-   T.cells[0].querySelector('.tile').innerHTML.indexOf('lyr back')
-   < T.cells[0].querySelector('.tile').innerHTML.indexOf('sheet'));
+ok('the tile draws one image, not a stack',
+   (T.cells[0].querySelector('.tile').innerHTML.match(/<img/g) || []).length === 1);
 T.slots[0].cards[0].url = ''; T.render();
 ok('tile caption lists both',
    T.cells[0].querySelector('.cap').innerHTML.includes('winter_rain') &&

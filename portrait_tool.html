@@ -2,144 +2,154 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Farmer Portraits — Preset Builder</title>
+<title>Farmer Portraits - Preset Builder</title>
 <style>
+/* One hue family (rose-plum, ~335) stepped by lightness, plus three status
+   colours dark enough to read as text on any surface here. Borders are all
+   hairlines: --line inside a panel, --edge for the panel itself. */
 :root{
-  --page:#241d29; --frame:#f4e6ec; --panel:#fae3ea;
-  --panel-sub:#f0d3de; --frame-sub:#dcbecb;
-  --edge:#3a2b35; --pill:#f6c6d7; --pill-edge:#e099b6;
-  --ink:#4a2f3d; --ink-dim:#75596a; --on-page:#efdfe7;
-  --tile:#ece3f0; --tile-edge:#a08fa8; --tile-on:#d6c8e0;
-  --ok:#3f7d52; --bad:#b23c3c; --warn:#9a6410;
+  --page:#231d28; --on-page:#e8dae2;
+  --panel:#fbf1f5; --panel-2:#f4e5ec; --tile:#efe6ee; --sel:#e7d8e4;
+  --line:#d9c6d2; --edge:#2f2630;
+  --ink:#3d2f3a; --dim:#7a6874;
+  --ok:#2f7350; --bad:#a83a3a; --warn:#8a5a12;
 }
 *{box-sizing:border-box}
-body{margin:0;padding:22px 20px 48px;background:var(--page);color:var(--ink);
-  font:500 15px/1.45 system-ui,"Segoe UI",Inter,Helvetica,Arial,sans-serif}
-/* Sized to hug the 4-wide grid (4x116 + gaps = 506px) rather than to fill the
-   window, so the top card has no dead margin. */
-.wrap{max-width:600px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
-#cards{display:flex;flex-direction:column;gap:16px}
+body{margin:0;padding:24px 20px 56px;background:var(--page);color:var(--ink);
+  font:400 15px/1.5 system-ui,"Segoe UI",Inter,Helvetica,Arial,sans-serif}
+/* Sized to hug the 4-wide grid rather than fill the window. */
+.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+#cards{display:flex;flex-direction:column;gap:12px}
 
-.panel{background:var(--panel);border:3px solid var(--edge);border-radius:14px;
-  padding:16px 18px}
-/* Editor cards sit beneath the top card: same border, darker fill, so they
+.panel{background:var(--panel);border:1px solid var(--edge);border-radius:10px;
+  padding:18px 20px}
+/* Editor cards sit beneath the top card: same border, one step darker, so they
    read as nested without a second frame competing for attention. */
-.card{background:var(--panel-sub);position:relative;padding:14px 18px}
+.card{background:var(--panel-2);position:relative;padding:16px 20px}
 
-.grid{display:grid;grid-template-columns:repeat(4,116px);gap:12px 14px;
-  justify-content:center}
-.cell{display:flex;flex-direction:column;gap:5px;cursor:pointer}
-.tile{aspect-ratio:9/16;background:var(--tile);border:2px solid var(--tile-edge);
-  border-radius:3px;display:flex;align-items:center;justify-content:center;
-  overflow:hidden;position:relative}
-.cell.sel .tile{background:var(--tile-on);border-color:var(--edge);
-  box-shadow:inset 0 0 0 1px var(--edge)}
-.cell.drop .tile{border-color:var(--ok);background:#dff0e2}
+/* Tile and tag list side by side. Under the tile the tags wrapped and threw the
+   rows out of line; beside it the list scrolls at the tile's own height. */
+/* minmax(0,1fr) and min-width:0 both matter: a grid column sizes to its content
+   by default, so one long unbreakable tag would widen slot 1 and squeeze the
+   rest of the row instead of clipping. */
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.cell{display:flex;gap:10px;padding:6px;border-radius:8px;cursor:pointer;
+  min-width:0;border:1px solid transparent}
+.cell.sel{background:var(--sel);border-color:var(--edge)}
+.cell.drop{background:#e6f1e9;border-color:var(--ok)}
+.tile{position:relative;flex:none;width:98px;height:174px;background:var(--tile);
+  border:1px solid var(--line);border-radius:4px;overflow:hidden;
+  display:flex;align-items:center;justify-content:center}
+.cell.sel .tile{border-color:var(--edge)}
 .tile img{max-width:100%;max-height:100%;image-rendering:pixelated;display:block}
-/* A stacked slot draws two solid sheets behind the front one. Everything here
-   is opaque with its own dark border: a translucent shadow would show the
-   portrait's own transparency through it and read as mud, and the front sheet
-   needs a hard edge or its top border vanishes into the layer behind. */
-.tile .lyr,.tile .sheet{position:absolute;left:5%;top:3%;width:80%;height:84%;
-  background:var(--tile-on);border:2px solid var(--edge);border-radius:2px;
-  display:flex;align-items:center;justify-content:center;overflow:hidden}
-.tile .lyr.back{transform:translate(15%,9%)}
-.tile .lyr.mid{transform:translate(7.5%,4.5%)}
-.tile .sheet{background:var(--tile)}
-/* The number sits over artwork now that slots can be stacked, so it needs its
-   own opaque chip rather than bare text. */
-.tile .num{position:absolute;top:0;left:0;font-size:12px;font-weight:700;
-  color:var(--ink);background:#fff;padding:0 5px;z-index:2;
-  border-right:2px solid var(--edge);border-bottom:2px solid var(--edge);
-  border-bottom-right-radius:5px}
-.tile .count{position:absolute;bottom:3px;right:3px;font-size:12px;font-weight:700;
-  color:#fff;background:var(--ok);border-radius:9px;padding:1px 7px;z-index:2}
-.tile .empty{font-size:13px;color:var(--ink-dim);text-align:center;padding:0 8px}
-.cap{text-align:center;font-size:13px;line-height:1.3;min-height:2.6em;
-  overflow-wrap:anywhere}
-/* Tag names are identifiers that end up in filenames, so they stay monospace
-   while the rest of the UI is sans - the contrast is doing hierarchy work. */
-.cap b{color:var(--ok);font-weight:700;
-  font-family:ui-monospace,Consolas,"Courier New",monospace}
-.cap i{color:var(--bad);font-style:normal;font-weight:600}
-.cap s{color:var(--ink-dim);text-decoration:none}
+/* The number sits over artwork, so it needs its own opaque chip. */
+.tile .num{position:absolute;top:0;left:0;padding:0 6px;z-index:2;
+  font-size:12px;font-weight:600;color:var(--dim);background:#fff;
+  border-right:1px solid var(--line);border-bottom:1px solid var(--line);
+  border-bottom-right-radius:4px}
+.tile .count{position:absolute;bottom:4px;right:4px;padding:1px 7px;z-index:2;
+  font-size:12px;font-weight:600;color:#fff;background:var(--ok);border-radius:9px}
+.tile .empty{font-size:13px;color:var(--dim)}
+/* Tags are identifiers that end up in filenames, so they stay monospace while
+   the messages beside them are sans - the contrast is doing hierarchy work.
+   One line each, clipped: the whole tag is readable in the editor below, and
+   wrapping here is what threw the rows out of line in the first place. */
+.cap{flex:1;min-width:0;height:174px;overflow-y:auto;font-size:12px;line-height:1.6}
+.cap b,.cap i,.cap s{display:block;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cap b{color:var(--ok);font-family:ui-monospace,Consolas,"Courier New",monospace}
+.cap i{color:var(--bad);font-style:normal}
+.cap s{color:var(--dim);text-decoration:none;font-weight:400}
 
-.slotHead{font-size:23px;font-weight:700;color:var(--on-page);margin:4px 0 -6px;
-  letter-spacing:-.01em}
-.detail{display:grid;grid-template-columns:186px 1fr;gap:38px;align-items:start}
+/* The two headings on the dark page, same treatment at two sizes. */
+.pageHead,.slotHead{font-weight:600;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--on-page)}
+.pageHead{margin:0 0 -2px;font-size:23px}
+.slotHead{margin:6px 0 -4px;font-size:17px}
+/* Preview, then the trigger in two columns, then tag and warnings on the right
+   where they can be scanned down a stack of cards. */
+.detail{display:grid;grid-template-columns:142px 1fr 232px;gap:22px;
+  align-items:start}
 /* Checkerboard, so a background the user forgot to remove in Picrew is obvious
-   here rather than in game. The portrait fills the box edge to edge - any
-   padding would read as transparent margin the sprite doesn't actually have.
-   Width, height and border-width are all fixed across both states: anything
-   that changes between empty and filled shows up as a jump on upload. */
-.preview{width:186px;height:330px;border:3px dashed var(--tile-edge);
-  border-radius:3px;display:flex;flex-direction:column;align-items:center;
-  justify-content:center;cursor:pointer;overflow:hidden;text-align:center;
-  background-color:#f4eef6;background-size:16px 16px;
-  background-position:0 0,8px 8px;
+   here rather than in game. The art fills the box edge to edge, and the box is
+   the same size empty or filled so an upload doesn't shift the row. */
+.preview{width:142px;height:252px;border:1px dashed var(--line);border-radius:4px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;overflow:hidden;background-color:#f7f2f7;background-size:14px 14px;
+  background-position:0 0,7px 7px;
   background-image:
-    linear-gradient(45deg,#cdc0d3 25%,transparent 25%,transparent 75%,#cdc0d3 75%),
-    linear-gradient(45deg,#cdc0d3 25%,transparent 25%,transparent 75%,#cdc0d3 75%)}
+    linear-gradient(45deg,#e0d5e2 25%,transparent 25%,transparent 75%,#e0d5e2 75%),
+    linear-gradient(45deg,#e0d5e2 25%,transparent 25%,transparent 75%,#e0d5e2 75%)}
 .preview.filled{border-style:solid}
 .preview img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;
   display:block}
-.preview .arrow{font-size:32px;line-height:1;color:var(--ink-dim)}
-.preview .lbl{font-size:13px;font-weight:700;letter-spacing:.06em;
-  color:var(--ink-dim);margin-top:6px}
+.preview .arrow{font-size:30px;line-height:1;color:var(--dim)}
+.preview .lbl{margin-top:4px}
 
-/* Matching the preview's height lets the tag and filename sit at the bottom of
-   the card instead of floating right under the last dropdown. */
-.fields{display:flex;flex-direction:column;gap:9px;min-height:330px}
-.field{display:grid;grid-template-columns:112px 1fr;gap:10px;align-items:center}
-.field label{font-size:14px;font-weight:600;color:var(--ink)}
-select{font:inherit;font-size:14px;font-weight:500;padding:6px 9px;
-  border:2px solid var(--tile-edge);border-radius:4px;background:#fff;
-  color:var(--ink);width:100%}
-select:disabled{background:#e7dce2;color:var(--ink-dim)}
-.chk{display:flex;gap:9px;align-items:center;font-size:14px;font-weight:600;
-  padding-right:30px}
-.chk span{font-weight:500}
-.chk input{width:17px;height:17px;accent-color:#c06a92}
-.tagline{font-size:14px;font-weight:600;margin-top:auto;min-height:1.6em}
-.tagline code{font-size:15px;font-weight:700}
-.tagline .ok{color:var(--ok)} .tagline .bad{color:var(--bad)}
-.filename{font-size:12px;color:var(--ink-dim);overflow-wrap:anywhere;
-  min-height:1.3em}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
+.field{display:flex;flex-direction:column;gap:4px}
+/* One small-caps label style for every label on the card. */
+.field label,.preview .lbl{font-size:12px;font-weight:600;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--dim)}
+/* Held a size below the body text: the dropdowns are the widest thing on the
+   card and the tag column beside them is worth more than their bulk. */
+select{font:inherit;font-size:14px;padding:5px 8px;border:1px solid var(--line);
+  border-radius:5px;background:#fff;color:var(--ink);width:100%}
+select:disabled{background:#ece2e8;color:var(--dim)}
+.chk{grid-column:1 / -1;display:flex;gap:8px;align-items:center;
+  font-size:14px;font-weight:600;cursor:pointer}
+.chk input{width:17px;height:17px;accent-color:#b06489}
+/* Right padding keeps the tag clear of the delete button in the corner. */
+.meta{display:flex;flex-direction:column;gap:6px;padding-right:26px}
+.tagline code{display:block;padding:5px 8px;border:1px solid var(--ok);
+  border-radius:5px;color:var(--ok);font-size:13px;overflow-wrap:anywhere}
+.tagline .bad{color:var(--bad);font-size:13px;font-weight:600}
+.filename{font-size:12px;color:var(--dim);overflow-wrap:anywhere}
 
-/* Flex-centred rather than line-height-centred: the multiplication sign sits
-   above the text baseline, so line-height alone leaves it visibly high. */
-.del{position:absolute;top:8px;right:10px;width:26px;height:26px;padding:0;
-  display:flex;align-items:center;justify-content:center;
-  font-size:18px;line-height:1;border-radius:6px;border:2px solid var(--tile-edge);
-  background:var(--tile);color:var(--ink-dim);cursor:pointer}
-.del:hover{background:#f3d5d5;border-color:var(--bad);color:var(--bad)}
+/* Flex-centred rather than line-height-centred, then nudged: the multiplication
+   sign's ink sits low in its line box, so centring the box leaves the glyph
+   about 2px below the middle of the button. The padding lifts it back. */
+.del{position:absolute;top:10px;right:12px;width:26px;height:26px;
+  padding:0 0 4px 1px;display:flex;align-items:center;justify-content:center;
+  font-size:17px;line-height:1;border-radius:5px;border:1px solid var(--line);
+  background:#fff;color:var(--dim);cursor:pointer}
+.del:hover{background:#fbeded;border-color:var(--bad);color:var(--bad)}
 
-.foot{margin-top:16px}
+/* Destructive on the left, the good one on the right and three times as wide.
+   Same type and shape for both so the pair reads as one control; only colour
+   separates them. Status spans the full width underneath. */
+.foot{margin-top:14px;display:grid;grid-template-columns:1fr 3fr;gap:10px}
 .foot button{width:100%}
-button{font:inherit;font-size:15px;font-weight:700;padding:10px 20px;border-radius:8px;
-  border:3px solid var(--pill-edge);background:var(--pill);color:var(--ink);cursor:pointer}
-button:hover:not(:disabled){background:#f9d5e2}
-button:disabled{opacity:.5;cursor:not-allowed}
-button.plain{border-color:var(--tile-edge);background:var(--tile);font-weight:600;
-  font-size:13px;padding:7px 13px}
-button.add{width:100%;border-style:dashed;background:transparent;
-  color:var(--on-page);border-color:#6b5265}
-button.add:hover:not(:disabled){background:#332838}
-/* One problem per line, under the button. Joined with separators they ran to
-   three wrapped lines and none of them were scannable. */
-#status{display:block;font-size:14px;font-weight:600;margin-top:10px}
+button{font:inherit;font-size:15px;font-weight:600;padding:10px 18px;
+  border:1px solid var(--line);border-radius:6px;background:#fff;
+  color:var(--ink);cursor:pointer}
+button:hover:not(:disabled){background:#f6ecf1}
+button:disabled{opacity:.45;cursor:not-allowed}
+#export{background:#dcefe1;border-color:#4f8f63;color:#24583a}
+#export:hover:not(:disabled){background:#cbe7d3}
+#reset{background:#eae0d3;border-color:#a08a70;color:#5a4632}
+#reset:hover:not(:disabled){background:#e0d3c1}
+button.add{width:100%;background:transparent;border-style:dashed;
+  border-color:#584655;color:var(--on-page)}
+button.add:hover:not(:disabled){background:#2e2733}
+/* One problem per line, straight under the grid they refer to. Joined with
+   separators they ran to three wrapped lines and none were scannable. */
+#status{display:block;font-size:14px;font-weight:500;margin-top:14px}
 #status .line{padding:1px 0}
 #status .bad{color:var(--bad)} #status .ok{color:var(--ok)}
 #status .warn{color:var(--warn)}
-.note{font-size:13px;color:var(--ink-dim);margin:12px 0 0;line-height:1.6}
-.note b{color:var(--ink);font-weight:700}
+.note{font-size:13px;color:var(--dim);margin:12px 0 0;line-height:1.6}
+.note b{color:var(--ink);font-weight:600}
+/* The next-steps note after an export: same place as the warnings it replaces,
+   boxed so it reads as a result rather than another line of status. */
+.note.box{border:1px solid var(--line);border-radius:8px;padding:10px 14px;
+  background:#fffafc;color:var(--ink)}
 .gridfoot{display:flex;justify-content:space-between;align-items:flex-end;
   gap:16px;flex-wrap:wrap}
 .gridfoot .note{margin-bottom:0}
-.tools{display:flex;gap:12px;align-items:center}
-.toggle{display:flex;gap:8px;align-items:center;font-size:13px;font-weight:600;
+.toggle{display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;
   color:var(--ink);white-space:nowrap;cursor:pointer;user-select:none}
-.toggle input{width:16px;height:16px;accent-color:#c06a92;cursor:pointer}
+.toggle input{width:17px;height:17px;accent-color:#c06a92;cursor:pointer}
 /* Display-only. The export mirrors unconditionally - this just previews it, so
    it must never be read back when building. */
 #wrap.flipped .tile img, #wrap.flipped .preview img{transform:scaleX(-1)}
@@ -148,23 +158,24 @@ button.add:hover:not(:disabled){background:#332838}
 <body>
 <div class="wrap" id="wrap">
 
+  <h1 class="pageHead">Farmer Portrait Binding Tool</h1>
+
+  <!-- Tiles, then what is wrong with them, then the controls: nothing between
+       the grid and its own warnings. -->
   <div class="panel">
     <div class="grid" id="grid"></div>
+    <span id="status"></span>
+    <p class="note box" id="afterExport" style="display:none"></p>
     <div class="gridfoot">
-      <p class="note">Drop PNGs here to fill empty slots. Click a slot to edit it.<br>
-        <b>Slot number = in-game preset slot.</b></p>
-      <div class="tools">
-        <label class="toggle" title="The export always mirrors; this only changes what you see here.">
-          <input type="checkbox" id="flip"> Preview flipped images</label>
-        <button class="plain" id="reset"
-          title="Your work is saved in this browser. This throws it away.">Start over</button>
-      </div>
+      <p class="note"><b>Slot number = in-game preset slot.</b></p>
+      <label class="toggle" title="The export always mirrors. This only changes what you see here.">
+        <input type="checkbox" id="flip"> Preview flipped images</label>
     </div>
     <div class="foot">
-      <button id="export">Finish and export to game</button>
-      <span id="status"></span>
+      <button id="reset"
+        title="Your work is saved in this browser. This throws it away.">Start over</button>
+      <button id="export">Finish and export</button>
     </div>
-    <p class="note" id="afterExport" style="display:none"></p>
   </div>
 
   <h2 class="slotHead" id="slotHead">Slot 1</h2>
@@ -294,7 +305,7 @@ function saveState(){
     saveNote = '';
   } catch (err){
     // Quota, private browsing, a locked-down browser - all the same to the user.
-    saveNote = 'your work is not being saved — browser storage is unavailable';
+    saveNote = 'browser storage is unavailable, your work is not being saved';
   }
 }
 
@@ -420,7 +431,7 @@ function makeCard(card, idx){
   const isDefault = document.createElement('input');
   isDefault.type = 'checkbox';
   chk.title = 'Shown whenever nothing more specific matches. One per build.';
-  chk.append(isDefault, el('span', '', 'use as default?'));
+  chk.append(isDefault, el('span', '', 'Use as default'));
   fields.append(chk);
 
   const mk = (labelText, opts, blankLabel) => {
@@ -432,6 +443,8 @@ function makeCard(card, idx){
     fields.append(row);
     return sel;
   };
+  // Two columns, reading across: season then weather, then the extra condition
+  // and its value under them.
   const fSeason  = mk('Season', SEASONS, 'any season');
   const fWeather = mk('Weather', WEATHER, 'any weather');
   const fKind    = mk('Then one of', KINDS, null);
@@ -439,9 +452,10 @@ function makeCard(card, idx){
 
   const tagline  = el('div', 'tagline');
   const filename = el('div', 'filename');
-  fields.append(tagline, filename);
+  const meta     = el('div', 'meta');
+  meta.append(tagline, filename);
 
-  detail.append(preview, fields);
+  detail.append(preview, fields, meta);
   box.append(detail);
 
   function readBack(){
@@ -474,7 +488,7 @@ function makeCard(card, idx){
     filename.textContent = card.name;
     const st = statusOf(card);
     tagline.innerHTML = st.state === 'ok'
-      ? `Tag: <code class="ok">${st.tag}</code>`
+      ? `<code>${st.tag}</code>`
       : `<span class="bad">⚠ ${st.msg}</span>`;
   }
 
@@ -516,7 +530,7 @@ $('flip').onchange = () =>
 
 // Work persists across reloads, so there has to be a way back to empty.
 $('reset').onclick = () => {
-  if (!confirm('Throw away every portrait and trigger and start from empty?')) return;
+  if (!confirm('Throw away every portrait and trigger, and start from empty?')) return;
   try { localStorage.removeItem(STORE); } catch (err){ /* nothing to remove */ }
   slots.forEach(s => { s.cards = [blank()]; });
   current = 0;
@@ -536,15 +550,14 @@ function render(){
     cell.classList.toggle('sel', i === current);
     const shown = s.cards.find(c => c.url);
     const tile = cell.querySelector('.tile');
-    const stacked = s.cards.length > 1 && !!shown;
-    tile.classList.toggle('stacked', stacked);
-    // Back and mid sheets come first so they paint underneath; no z-index games.
-    const art = !shown ? '<span class="empty">empty</span>'
-      : stacked ? '<span class="lyr back"></span><span class="lyr mid"></span>'
-                  + `<span class="sheet"><img src="${shown.url}" alt=""></span>`
-      : `<img src="${shown.url}" alt="">`;
+    // A slot holding several portraits used to draw stacked sheets behind the
+    // front one. The tag list beside the tile says the same thing, so all that
+    // is left of it is the count badge.
+    const art = shown ? `<img src="${shown.url}" alt="">`
+                      : '<span class="empty">empty</span>';
     const body = `<span class="num">${i+1}</span>`
-      + (s.cards.length > 1 ? `<span class="count">&times;${s.cards.length}</span>` : '')
+      + (s.cards.length > 1
+          ? `<span class="count">${s.cards.length} items</span>` : '')
       + art;
     // Only touch the DOM when it actually changed; rewriting innerHTML on every
     // dropdown change re-creates the <img> and makes the whole grid flicker.
@@ -554,7 +567,7 @@ function render(){
       return st.state === 'ok'  ? `<b>${st.tag}</b>`
            : st.state === 'bad' ? `<i>${st.msg}</i>`
            :                      `<s>${st.msg}</s>`;
-    }).join('<br>');
+    }).join('');
   });
 
   const problems = validate();
@@ -587,11 +600,14 @@ function advisories(){
   const out = [];
   const used = new Set(everyCard()
     .filter(x => statusOf(x.card).state === 'ok').map(x => x.slot));
+  // Nothing valid yet means nothing to advise about; presetsNeeded() floors at
+  // 1, so without this an empty board says slot 1 is both unused and needed.
+  if (!used.size) return out;
   const need = presetsNeeded();
   const gaps = [];
   for (let i = 0; i < need; i++) if (!used.has(i)) gaps.push(i + 1);
-  if (gaps.length) out.push(`slot ${gaps.join(', ')} unused but slot ${need} is `
-    + `— you still have to create ${need} outfit presets in game`);
+  if (gaps.length) out.push(`slot ${gaps.join(', ')} unused, but slot ${need} is. `
+    + `You still have to build ${need} outfit presets in game`);
   return out;
 }
 
@@ -608,8 +624,8 @@ function validate(){
   if (bad) out.push(`${bad} portrait(s) need a valid trigger`);
   const defs = all.filter(x => x.card.isDefault).length;
   if (defs !== 1) out.push(defs === 0
-    ? 'no portrait marked as default (the mod requires one)'
-    : `${defs} portraits marked default (only one allowed)`);
+    ? 'no portrait set as default (one is required)'
+    : `${defs} portraits set as default (only one allowed)`);
   // Two cards with the same tag would write the same sprite file twice, and the
   // second slot number would silently win.
   const tags = all.filter(x => statusOf(x.card).state === 'ok').map(x => tagOf(x.card));
@@ -669,7 +685,7 @@ function acceptInto(slot, files){
 function acceptFiles(files, slot){
   const list = [...files].filter(f => /\.png$/i.test(f.name));
   const rejected = files.length - list.length;
-  notice = rejected ? `${rejected} file(s) ignored — PNG only` : '';
+  notice = rejected ? `${rejected} file(s) ignored, PNG only` : '';
   if (!list.length){ render(); return; }
   if (slot !== undefined){ acceptInto(slot, list); return; }
   // A drop on the panel background spreads across slots that are still empty.
@@ -682,7 +698,7 @@ let pickTarget = null;
 $('picker').onchange = e => {
   const f = [...e.target.files].filter(x => /\.png$/i.test(x.name));
   notice = e.target.files.length - f.length
-    ? `${e.target.files.length - f.length} file(s) ignored — PNG only` : '';
+    ? `${e.target.files.length - f.length} file(s) ignored, PNG only` : '';
   if (f.length && pickTarget) loadInto(pickTarget, f[0]);
   e.target.value = '';
   render();
@@ -932,17 +948,14 @@ $('export').onclick = async () => {
     after.style.display = '';
     after.innerHTML =
       `<b>Next steps</b><br>`
-      + `1. Unzip it. You get one folder, <b>${MOD_DIR}</b>, already named `
-      + `correctly.<br>`
-      + `2. Put it in your mods folder, <b>replacing</b> any folder of that name `
-      + `&mdash; delete the old one first rather than merging, so a portrait you `
-      + `removed can't linger and outrank a new one.<br>`
-      + `3. Open MOMI and hit <b>Install</b>. Art is baked in at install time, so `
-      + `this is needed after every export.<br>`
+      + `1. Unzip. You get one folder, <b>${MOD_DIR}</b>, already named right.<br>`
+      + `2. Put it in your mods folder. If a folder of that name is already there, `
+      + `<b>delete it first</b>. Merging leaves old portraits behind, and they can `
+      + `override the new ones.<br>`
+      + `3. Open MOMI, hit <b>Install</b>. Needed after every export.<br>`
       + `4. In game, build <b>${presetsNeeded()} outfit preset`
-      + `${presetsNeeded() === 1 ? '' : 's'}</b> to match the slots above. `
-      + `A new farmer starts with one; the rest are added in the customization `
-      + `menu, and a slot you never build is simply skipped.`
+      + `${presetsNeeded() === 1 ? '' : 's'}</b> to match the slots above. A new `
+      + `farmer starts with one; add the rest in the customization menu.`
       + (warnings.length
           ? `<br><br><b>Warning:</b> ${warnings.join('; ')}. Re-export from Picrew `
             + `with transparency on.`
