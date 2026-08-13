@@ -242,6 +242,7 @@ const VALUES = {
 const SLOTS = 8;                       // hard constraint: the game has 8 presets
 const TARGET_H = 180;                  // DEULO_FP_VANILLA_PORTRAIT_H -> fit 1.0
 const MOD_DIR = 'FarmerPortraitsExample';
+const SYNC_DIR = 'FarmerPortraitsSync';   // the outfit-swapping companion mod
 
 /* ----------------------------------------------------------------- state
    A slot is a list of portraits, not one portrait. Several tags can point at
@@ -737,7 +738,13 @@ async function buildFiles(){
     slots: outfits,
   }, null, 2) + '\n')});
   files.push({name: `${MOD_DIR}/manifest.json`, data: enc.encode(MANIFEST)});
-  // Sits beside the mod folder, not inside it, so it never ships into mods\.
+
+  // The companion mod: same table, compiled in rather than read at runtime.
+  files.push({name: `${SYNC_DIR}/gml/FarmerPortraitsSync.gml`,
+              data: enc.encode(syncGml(outfits))});
+  files.push({name: `${SYNC_DIR}/manifest.json`, data: enc.encode(SYNC_MANIFEST)});
+
+  // Sits beside the mod folders, not inside them, so it never ships into mods\.
   files.push({name: 'INSTALL.bat', data: enc.encode(INSTALLER)});
   return {files, warnings};
 }
@@ -761,9 +768,10 @@ $('export').onclick = async () => {
       + `at, holding <b>Farmer Portraits</b>):<br>`
       + `1. <b>Delete the whole ${MOD_DIR} folder</b> there, if you have one. `
       + `Replacing it wholesale is what stops an old portrait outranking a new one.<br>`
-      + `2. Extract this zip into that mods folder &mdash; it already contains `
-      + `<b>${MOD_DIR}\\</b>, so use <b>Extract Here</b>.<br>`
-      + `3. Open MOMI and hit <b>Install</b>. Art is baked in at install time.<br>`
+      + `2. Extract this zip into that mods folder &mdash; it contains `
+      + `<b>${MOD_DIR}\\</b> and <b>${SYNC_DIR}\\</b>, so use <b>Extract Here</b>.<br>`
+      + `3. Open MOMI, enable <b>both</b> new mods, and hit <b>Install</b>. `
+      + `Art is baked in at install time.<br>`
       + `4. In game, build outfit presets 1&ndash;8 to match the slots above.<br>`
       + `<br><b>INSTALL.bat</b> in the zip does steps 1&ndash;2 for you. Windows `
       + `blocks scripts that came from a browser, so right-click it &rarr; `
@@ -779,6 +787,108 @@ $('export').onclick = async () => {
   }
 };
 
+/* ------------------------------------------------- companion outfit mod
+   Generated with the tag -> slot table baked in as a literal, so there is no
+   file reading, no parsing and no path handling at runtime, and the table can
+   never drift from the sprites it shipped beside.
+
+   Every API below was read out of the game's own GML rather than guessed:
+   obj_ari.change_preset(n) and ARI.presets.count() are how AriFsm.gml and
+   CustomizationMenu.gml do it, and ANCHOR.get_menu(Menu.Textbox) is the exact
+   test Farmer Portraits runs before drawing a portrait at all - so the clothes
+   cannot disagree with the face on screen. */
+function syncGml(outfits){
+  const rows = Object.entries(outfits)
+    .map(([tag, slot]) => `    _m[$ "${tag}"] = ${slot};`).join('\n');
+  return `// Farmer Portraits Sync - swaps the farmer's outfit to match the portrait.
+//
+// GENERATED FILE. Rebuild it from the portrait tool rather than hand-editing,
+// so this table and the sprites beside it cannot drift apart.
+
+#macro SAGE_FPS_ID "sage_farmer_portraits_sync"
+
+function __sage_fps_slots() {
+    var _m = {};
+${rows}
+    return _m;
+}
+
+function __sage_fps_runtime() {
+    if (global[$ "__sage_fps"] == undefined) {
+        global.__sage_fps = {
+            registered: undefined,
+            menu:       undefined,
+            slots:      __sage_fps_slots(),
+        };
+    }
+    return global.__sage_fps;
+}
+
+/// Apply the outfit exactly once, on the rising edge of a conversation.
+function sage_fps_tick() {
+    var _rt = __sage_fps_runtime();
+
+    if (!is_struct(ANCHOR)) return;
+
+    var _menu = ANCHOR.get_menu(Menu.Textbox);
+    if (_menu == undefined) {
+        // Between conversations the wardrobe belongs to the player. Cycle
+        // presets, edit them, nothing here fights back.
+        _rt.menu = undefined;
+        return;
+    }
+    if (_rt.menu == _menu) return;   // same conversation, already handled
+    _rt.menu = _menu;
+
+    try {
+        // Cutscenes drive the portrait but not the clothes: the FSM routes
+        // preset changes through animations, so a mid-cutscene swap is the
+        // most likely thing to glitch.
+        if (deulo_farmer_portraits_cutscene_name() != undefined) return;
+
+        if (!instance_exists(obj_ari)) return;
+        if (!is_struct(ARI)) return;
+        var _count = ARI.presets.count();
+        if (_count <= 0) return;
+
+        // Same key array, same order as the sprite lookup, so the first key
+        // with a slot is the same key that won the portrait.
+        var _keys = deulo_farmer_portraits_keys(deulo_farmer_portraits_context());
+        for (var _i = 0; _i < array_length(_keys); _i++) {
+            var _slot = _rt.slots[$ _keys[_i]];
+            if (_slot == undefined) continue;
+            if (_slot < 0 || _slot >= _count) return;       // fewer presets saved than mapped
+            if (ARI.preset_index_selected == _slot) return; // already right, skip the rebuild
+            obj_ari.change_preset(_slot);
+            return;
+        }
+    } catch (_err) {
+        // A wardrobe change is never worth taking the game down for.
+    }
+}
+
+function sage_fps_register() {
+    var _rt = __sage_fps_runtime();
+    if (_rt.registered != undefined) return;
+    _rt.registered = true;
+    mmapi_register(sage_fps_tick);
+}
+
+mmapi_mod_declare(SAGE_FPS_ID, "1.0.0");
+sage_fps_register();
+`;
+}
+
+const SYNC_MANIFEST = JSON.stringify({
+  name: 'Farmer Portraits Sync',
+  author: 'Sage',
+  version: '1.0.0',
+  description: "Swaps the farmer's outfit preset to match the portrait shown in dialogue.",
+  minInstallerVersion: '0.13.0',
+  manifestVersion: 1,
+  requires_hooks: [],
+}, null, 4) + '\n';
+
 /* Installer. It writes into the user's MOMI mods library - the folder MOMI asks
    for at startup - and never into the game directory. MOMI owns the game
    directory: it copies the library in on install and manages profiles there, so
@@ -791,6 +901,7 @@ const INSTALLER = [
   '@echo off',
   'setlocal',
   'set "MOD=' + MOD_DIR + '"',
+  'set "SYNC=' + SYNC_DIR + '"',
   'set "ART=animations\\FarmerPortraits"',
   'set "BASE=Farmer Portraits"',
   '',
@@ -843,6 +954,7 @@ const INSTALLER = [
   'rem and a stale tag can outrank a new one and appear to break the export.',
   'if exist "%LIB%\\%MOD%\\%ART%" rmdir /s /q "%LIB%\\%MOD%\\%ART%"',
   'xcopy "%~dp0%MOD%" "%LIB%\\%MOD%" /e /i /y >nul',
+  'if not errorlevel 1 xcopy "%~dp0%SYNC%" "%LIB%\\%SYNC%" /e /i /y >nul',
   'if errorlevel 1 (',
   '  echo.',
   '  echo  Copy failed - is the folder open somewhere, or read-only?',

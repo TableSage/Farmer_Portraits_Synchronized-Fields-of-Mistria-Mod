@@ -3,11 +3,11 @@
  *   node test_tool.mjs
  *
  * Runs the page's script against a minimal DOM shim, drives the UI the way a
- * user would, and checks the things that are expensive to discover in a
- * browser: that every slot renders, that several portraits can share one outfit
- * slot, that the pixel pipeline matches build_portrait.py exactly, and that the
- * hand-rolled zip is readable by a real zip implementation (test_zip.zip is
- * written for a zipfile round-trip).
+ * user would, and checks the things that are expensive to discover in a browser
+ * or impossible to see until you are in game: that every slot renders, that the
+ * tag list still matches the mod's own GML, that several portraits can share one
+ * outfit slot, that the pixel pipeline is exact, and that the generated
+ * companion mod and installer are well formed.
  */
 import fs from 'node:fs';
 
@@ -363,9 +363,41 @@ ok('slot 0\'s two portraits both point at slot 0',
    JSON.stringify(sidecar.slots));
 ok('indices are 0-based and within range',
    Object.values(sidecar.slots).every(v => v >= 0 && v < 8));
-ok('mod files are rooted at the mod folder',
+ok('mod files are rooted at a mod folder',
    files.filter(f => f.name !== 'INSTALL.bat')
-        .every(f => f.name.startsWith('FarmerPortraitsExample/')));
+        .every(f => f.name.startsWith('FarmerPortraitsExample/')
+                 || f.name.startsWith('FarmerPortraitsSync/')));
+
+/* the companion outfit mod */
+const gml = new TextDecoder().decode(
+  files.find(f => f.name.endsWith('FarmerPortraitsSync.gml')).data);
+ok('sync mod ships gml + manifest',
+   files.some(f => f.name === 'FarmerPortraitsSync/manifest.json') && !!gml);
+ok('every tag is baked into the gml table',
+   Object.keys(sidecar.slots).every(t => gml.includes(`_m[$ "${t}"] =`)),
+   Object.keys(sidecar.slots).filter(t => !gml.includes(`_m[$ "${t}"] =`)).join(','));
+ok('shared slots appear once per tag, not once per slot',
+   (gml.match(/_m\[\$ "/g) || []).length === Object.keys(sidecar.slots).length);
+ok('registers a tick and declares itself',
+   gml.includes('mmapi_register(sage_fps_tick)') &&
+   gml.includes('mmapi_mod_declare(SAGE_FPS_ID'));
+// The rising-edge rule is the whole contract: act when a textbox appears, and
+// never between conversations, or the mod fights the player's own wardrobe edits.
+ok('acts only on the rising edge of a textbox',
+   gml.includes('ANCHOR.get_menu(Menu.Textbox)') &&
+   gml.includes('if (_rt.menu == _menu) return;') &&
+   gml.includes('_rt.menu = undefined;'));
+ok('skips cutscenes', gml.includes('deulo_farmer_portraits_cutscene_name() != undefined'));
+ok('guards the preset count and no-ops when already correct',
+   gml.includes('_slot >= _count') &&
+   gml.includes('ARI.preset_index_selected == _slot'));
+ok('walks the mod\'s own key list, not a private copy',
+   gml.includes('deulo_farmer_portraits_keys(deulo_farmer_portraits_context())'));
+ok('uses the game\'s own preset API',
+   gml.includes('obj_ari.change_preset(_slot)') &&
+   gml.includes('instance_exists(obj_ari)'));
+ok('gml braces balance',
+   (gml.match(/\{/g) || []).length === (gml.match(/\}/g) || []).length);
 
 /* the installer script */
 const bat = new TextDecoder().decode(

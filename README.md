@@ -129,11 +129,33 @@ lists are identical, in order. It reads the mod from
 **fails rather than skips**, because a correctness check that quietly disappears
 is worse than no check at all.
 
-## Not built yet
+## The outfit half
 
-The companion GML mod that reads `outfit_slots.json` and calls
-`obj_ari.change_preset(n)`. The tool already emits the sidecar (0-based indices).
-See PRD §8 — the central rule is that the outfit is applied **once, on the rising
-edge of dialogue**, so between conversations the player's wardrobe is entirely
-their own. §8 and §11 also record the resolved design: a companion mod rather
-than a fork, keyed off `ANCHOR.get_menu(Menu.Textbox)`.
+Every export also generates **`FarmerPortraitsSync\`**, a companion mod that
+swaps the farmer's outfit preset to match the portrait. The `tag -> slot` table
+is compiled into the GML as a literal, so there is no file to read at runtime and
+the table cannot drift from the sprites it shipped with. Both mods must be
+enabled in MOMI.
+
+It is a companion, not a fork: `deulo_farmer_portraits_context()` and
+`deulo_farmer_portraits_keys()` are global functions, so it walks *the same key
+array in the same order* as the portrait lookup. The first key with a slot is the
+same key that won the sprite, which is why the clothes can never disagree with
+the face on screen.
+
+**The one rule that matters: it acts only on the rising edge of dialogue.**
+`ANCHOR.get_menu(Menu.Textbox)` going from `undefined` to a menu is a new
+conversation; that is the only moment the outfit is touched. Between
+conversations the wardrobe is entirely the player's — cycle presets, edit them in
+the customization menu, nothing fights back. The naive alternative (re-assert
+whenever the winning tag changes) silently reverts the player when they dress up
+and walk outdoors, and reads as a haunted game rather than a mod.
+
+Guards: cutscenes drive the portrait but never the clothes (the FSM routes preset
+changes through animations); the slot is range-checked against
+`ARI.presets.count()` in case fewer than 8 presets are saved; and it no-ops when
+the preset is already correct, so an ordinary conversation costs nothing.
+
+The accepted trade-off, worth knowing before it surprises you: **on-map clothes
+only update when you talk to someone.** If the season turns while you wander,
+you keep the previous outfit until the next conversation.
