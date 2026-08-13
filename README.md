@@ -28,6 +28,37 @@ with whichever portrait is on screen.
   whose exports work as they come: the tool downsamples, mirrors and pads them
   for you
 
+## Install
+
+Everything lives in the game's own mods folder, the one MOMI reads:
+
+```
+...\steamapps\common\Fields of Mistria\mods\
+```
+
+**1. Once, ever.** Put `FarmerPortraitsSync` in there, beside the
+`Farmer Portraits` folder that is already there.
+
+**2. Build your portraits.** Open `portrait_tool.html`. Drag your PNGs onto the
+slots, give each one a trigger, tick **use as default** on exactly one, then
+**Finish and export**.
+
+**3. Install them.** Unzip the download and put the folder inside into the same
+mods folder.
+
+> **If `FarmerPortraitsExample` is already there, delete it first.** Merging
+> leaves old portraits behind, and they can outrank your new ones with no error
+> anywhere.
+
+**4. Open MOMI, tick both mods, hit Install.** Artwork is baked in at install
+time, so this is needed after every export.
+
+**5. In game, build your outfit presets** so preset 1 matches slot 1, preset 2
+matches slot 2, and so on.
+
+To change your portraits later, repeat steps 2 to 4. The tool remembers your
+work between visits, and the outfit mod from step 1 never needs touching again.
+
 ## How it works
 
 **8 slots, one per in-game outfit preset.** Grid position is the preset number,
