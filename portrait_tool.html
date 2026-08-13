@@ -757,12 +757,18 @@ $('export').onclick = async () => {
     const after = $('afterExport');
     after.style.display = '';
     after.innerHTML =
-      `<b>Next steps</b><br>`
-      + `1. Extract the whole zip anywhere &mdash; the folder does not matter.<br>`
-      + `2. Double-click <b>INSTALL.bat</b> and drag your MOMI mods folder onto it. `
-      + `It replaces the old portraits there; nothing changes until you confirm.<br>`
+      `<b>Next steps</b> &mdash; in your MOMI mods folder (the one you point MOMI `
+      + `at, holding <b>Farmer Portraits</b>):<br>`
+      + `1. <b>Delete the whole ${MOD_DIR} folder</b> there, if you have one. `
+      + `Replacing it wholesale is what stops an old portrait outranking a new one.<br>`
+      + `2. Extract this zip into that mods folder &mdash; it already contains `
+      + `<b>${MOD_DIR}\\</b>, so use <b>Extract Here</b>.<br>`
       + `3. Open MOMI and hit <b>Install</b>. Art is baked in at install time.<br>`
-      + `4. In game, build outfit presets 1&ndash;8 to match the slots above.`
+      + `4. In game, build outfit presets 1&ndash;8 to match the slots above.<br>`
+      + `<br><b>INSTALL.bat</b> in the zip does steps 1&ndash;2 for you. Windows `
+      + `blocks scripts that came from a browser, so right-click it &rarr; `
+      + `Properties &rarr; tick <b>Unblock</b> first. The manual route above is `
+      + `equally safe &mdash; the script only saves the folder delete.`
       + (warnings.length
           ? `<br><br><b>Warning:</b> ${warnings.join('; ')}. Re-export from Picrew `
             + `with transparency on.`

@@ -27,11 +27,16 @@ Open `portrait_tool.html` in any browser. No install, no server, no network.
 2. Per portrait, build the trigger: season / weather / then one more condition.
    Exactly one portrait in the whole build gets **use as default?**
 3. **Finish and export to game** downloads `FarmerPortraitsExample.zip`
-4. Extract the whole zip anywhere, then double-click **INSTALL.bat** and drag
-   your MOMI mods folder onto the window
+4. In your MOMI mods folder: **delete the whole `FarmerPortraitsExample` folder**,
+   then **Extract Here** the zip (its root is already `FarmerPortraitsExample\`)
 5. Open MOMI and hit Install — art is baked in at install time, so this is
    required after every art change
 6. In game, build outfit presets 1–8 to match the slots
+
+`INSTALL.bat` in the zip automates step 4. Windows blocks scripts downloaded
+through a browser, so right-click it → Properties → tick **Unblock** before it
+will run. Replacing the folder by hand is equally safe and is the documented
+path; the script only saves the delete.
 
 ### Where things live (get this wrong and nothing works)
 
@@ -47,28 +52,31 @@ folder appears to work and is then silently reverted by MOMI's next install.
 This matches DeUlo's own instruction — *"Put the mods into your mods folder and
 install through MOMI"* — where "your mods folder" is the library.
 
-### Why there is an installer
+### Why step 4 says delete, not overwrite
 
 The export replaces DeUlo's example sprite mod, exactly as the readme's
 walkthrough describes ("open the example's art folder" and swap the images).
-Two silent failure modes come with doing that by hand, and the script fixes both:
+Two silent failure modes come with doing that by hand:
 
-- **Stale sprites outrank new ones.** Extracting over the mod folder adds files
+- **Stale sprites outrank new ones.** Extracting *over* the mod folder adds files
   but never removes them. A leftover `winter_sunny.png` from an older export
   beats a new `beach.png` every time, because `season_weather` sits above
-  `location` in the precedence list — so the new portraits appear not to work.
-  The installer deletes `animations\FarmerPortraits\` before copying.
+  `location` in the precedence list — so the new portraits appear not to work,
+  with no error anywhere. Deleting the folder first makes this impossible.
 - **Explorer's wrapper folder.** "Extract to `FarmerPortraitsExample\`" nests the
   mod one level too deep, `manifest.json` ends up where MOMI does not look, and
-  MOMI simply does not list the mod. The installer copies the folder itself, so
-  where the zip was unpacked stops mattering.
+  MOMI simply does not list the mod. Use **Extract Here**.
 
-MOMI does not record its library path anywhere on disk, so the script asks for
-it and validates it by looking for the `Farmer Portraits` base mod inside — which
-has to be there anyway, so a wrong folder and a missing dependency produce one
-clear error instead of two confusing ones. It confirms before deleting anything.
-A browser cannot delete files, which is the whole reason this is a script rather
-than part of the export.
+`INSTALL.bat` exists to do both correctly. MOMI does not record its library path
+anywhere on disk, so the script asks for it and validates it by looking for the
+`Farmer Portraits` base mod inside — which has to be there anyway, so a wrong
+folder and a missing dependency produce one clear error instead of two confusing
+ones. It confirms before deleting anything.
+
+It is a convenience, not a requirement, and it is deliberately not the primary
+instruction: a `.bat` that arrived inside a browser download carries Windows'
+Mark-of-the-Web and is blocked until unblocked by hand, which is a worse first
+experience than deleting a folder.
 
 ### Naming: do not rename the mod
 
