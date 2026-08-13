@@ -120,7 +120,7 @@ new Function('__T', script + `
   Object.assign(__T, {makeZip, crc32, processImage, toNative, finish, buildFiles,
     statusOf, tagOf, validate, advisories, presetsNeeded, everyCard, slots, cells,
     render, select, buildCards, acceptFiles, loadInto, restoreState, saveState,
-    STORE, PATTERNS, TARGET_H, $});
+    STORE, PATTERNS, TARGET_H, MOD_DIR, $});
 `)(T);
 
 let fails = 0;
@@ -382,21 +382,39 @@ ok('slot 0\'s two portraits both point at slot 0',
    JSON.stringify(sidecar.slots));
 ok('indices are 0-based and within range',
    Object.values(sidecar.slots).every(v => v >= 0 && v < 8));
-ok('mod files are rooted at a mod folder',
-   files.filter(f => f.name !== 'INSTALL.bat')
-        .every(f => f.name.startsWith('FarmerPortraitsExample/')
-                 || f.name.startsWith('FarmerPortraitsSync/')));
+// One folder, already named the way it has to land. Anything else in the zip is
+// another thing the user has to understand.
+ok('the export is exactly one correctly-named mod folder',
+   files.every(f => f.name.startsWith(T.MOD_DIR + '/')),
+   files.filter(f => !f.name.startsWith(T.MOD_DIR + '/')).map(f => f.name).join(','));
+ok('no installer script ships', !files.some(f => /\.bat$/i.test(f.name)));
 
-/* the companion outfit mod */
-const gml = new TextDecoder().decode(
-  files.find(f => f.name.endsWith('FarmerPortraitsSync.gml')).data);
-ok('sync mod ships gml + manifest',
-   files.some(f => f.name === 'FarmerPortraitsSync/manifest.json') && !!gml);
-ok('every tag is baked into the gml table',
-   Object.keys(sidecar.slots).every(t => gml.includes(`_m[$ "${t}"] =`)),
-   Object.keys(sidecar.slots).filter(t => !gml.includes(`_m[$ "${t}"] =`)).join(','));
+/* the generated slot table, which rides along with the artwork it describes */
+const table = new TextDecoder().decode(
+  files.find(f => f.name.endsWith('FarmerPortraitsSlots.gml')).data);
+ok('the table ships inside the sprite mod',
+   files.some(f => f.name === `${T.MOD_DIR}/gml/FarmerPortraitsSlots.gml`));
+ok('every tag is baked into the table',
+   Object.keys(sidecar.slots).every(t => table.includes(`_m[$ "${t}"] =`)),
+   Object.keys(sidecar.slots).filter(t => !table.includes(`_m[$ "${t}"] =`)).join(','));
 ok('shared slots appear once per tag, not once per slot',
-   (gml.match(/_m\[\$ "/g) || []).length === Object.keys(sidecar.slots).length);
+   (table.match(/_m\[\$ "/g) || []).length === Object.keys(sidecar.slots).length);
+ok('the table publishes the global the outfit mod reads',
+   table.includes('global.__sage_fps_table = __sage_fps_slot_table();'));
+ok('table braces balance',
+   (table.match(/\{/g) || []).length === (table.match(/\}/g) || []).length);
+
+/* the outfit mod, which ships fixed beside the tool rather than generated */
+const SYNC = new URL('./FarmerPortraitsSync/gml/FarmerPortraitsSync.gml',
+                     import.meta.url);
+ok('the outfit mod ships as a real folder, not a build artifact',
+   fs.existsSync(SYNC) &&
+   fs.existsSync(new URL('./FarmerPortraitsSync/manifest.json', import.meta.url)));
+const gml = fs.readFileSync(SYNC, 'utf8');
+ok('it reads the generated table instead of carrying one',
+   gml.includes('global[$ "__sage_fps_table"]') && !gml.includes('_m[$ "'));
+ok('it says so out loud when the table is missing',
+   gml.includes('no portrait table found'));
 ok('registers a tick and declares itself',
    gml.includes('mmapi_register(sage_fps_tick)') &&
    gml.includes('mmapi_mod_declare(SAGE_FPS_ID'));
@@ -442,30 +460,6 @@ ok('uses the game\'s own preset API',
    gml.includes('instance_exists(obj_ari)'));
 ok('gml braces balance',
    (gml.match(/\{/g) || []).length === (gml.match(/\}/g) || []).length);
-
-/* the installer script */
-const bat = new TextDecoder().decode(
-  files.find(f => f.name === 'INSTALL.bat').data);
-ok('installer sits beside the mod folder, not inside it',
-   files.some(f => f.name === 'INSTALL.bat'));
-ok('installer uses CRLF for cmd.exe',
-   bat.includes('\r\n') && !/[^\r]\n/.test(bat));
-ok('installer deletes only the sprite folder',
-   (bat.match(/rmdir/g) || []).length === 1 &&
-   bat.includes('rmdir /s /q "%LIB%\\%MOD%\\%ART%"'));
-// MOMI owns the game directory. Writing there is reverted by its next install,
-// so the installer must never mention it.
-ok('installer targets the MOMI library, never the game folder',
-   !bat.includes('FieldsOfMistria.exe') && !/steamapps/i.test(bat));
-ok('installer validates the folder by the base mod',
-   bat.includes('if not exist "%LIB%\\%BASE%\\manifest.json"'));
-ok('installer confirms before deleting',
-   bat.indexOf('set /p OK=') < bat.indexOf('rmdir'));
-ok('installer checks its own payload is present',
-   bat.includes('%~dp0%MOD%\\manifest.json'));
-ok('every for-loop paren is balanced',
-   (bat.match(/\(/g) || []).length === (bat.match(/\)/g) || []).length,
-   `${(bat.match(/\(/g)||[]).length} open vs ${(bat.match(/\)/g)||[]).length} close`);
 
 /* 8. zip — written out for a real zip reader to open */
 console.log('\nzip');

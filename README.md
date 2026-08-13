@@ -4,8 +4,20 @@ An 8-slot builder for the Farmer Portraits mod. Drop in Picrew exports, pick whe
 each one should appear, export a ready-to-install mod folder.
 
 Grid position **is** the in-game preset slot: the portrait in slot 3 goes with
-outfit preset 3. The generated companion mod uses that mapping to swap the
+outfit preset 3. `FarmerPortraitsSync` uses that mapping to swap the
 mini-sprite's clothes to match the portrait on screen.
+
+What you downloaded:
+
+| | |
+|---|---|
+| `portrait_tool.html` | the builder. Open it in a browser |
+| `FarmerPortraitsSync\` | the outfit mod. Put it in your mods folder, once |
+| `README.md` | this |
+
+**Install once, export as often as you like.** The outfit mod never changes; what
+changes with your art is a small generated table that ships *inside* the portrait
+folder, so the two can't fall out of step.
 
 **A slot holds more than one portrait.** The 8 caps *outfits*, not art — several
 triggers can share one in-game outfit, which is what you want when the same
@@ -20,31 +32,29 @@ Read it before changing anything here.
 
 ## Use it
 
-Open `portrait_tool.html` in any browser. No install, no server, no network.
+**Once, before anything else:** drop `FarmerPortraitsSync\` into your mods folder
+— the one you point MOMI at, the one that already holds `Farmer Portraits`. You
+never touch it again.
+
+Then open `portrait_tool.html` in any browser. No install, no server, no network.
+
+1. Drag PNGs onto the grid — a drop on the background spreads across empty
+   slots, a drop on one tile fills that slot and adds cards for the extras
+2. Per portrait, build the trigger: season / weather / then one more condition.
+   Exactly one portrait in the whole build gets **use as default?**
+3. **Finish and export to game** downloads `FarmerPortraitsExample.zip`
+4. Unzip it. You get one folder, already named correctly. Put it in the same mods
+   folder, **replacing** any `FarmerPortraitsExample` already there — delete the
+   old one rather than merging (see below)
+5. Open MOMI, enable the mods, and hit **Install**. Art is baked in at install
+   time, so this is needed after every export
+6. In game, build the outfit presets to match the slots you used
 
 Your work is saved in the browser as you go, so closing the tab or reloading
 costs nothing. **Start over** in the top card is the way back to an empty board.
 What gets saved is the *downsampled* art — a few KB per portrait rather than the
 tens of KB a Picrew export weighs — which is the only reason eight portraits fit
 in browser storage at all.
-
-1. Drag PNGs onto the grid — a drop on the background spreads across empty
-   slots, a drop on one tile fills that slot and adds cards for the extras
-2. Per portrait, build the trigger: season / weather / then one more condition.
-   Exactly one portrait in the whole build gets **use as default?**
-3. **Finish and export to game** downloads `FarmerPortraitsExample.zip`, holding
-   `FarmerPortraitsExample\` (sprites), `FarmerPortraitsSync\` (the outfit mod)
-   and `INSTALL.bat`
-4. In your MOMI mods folder: **delete the whole `FarmerPortraitsExample` folder**,
-   then **Extract Here** the zip
-5. Open MOMI, enable **both** new mods, and hit Install — art is baked in at
-   install time, so this is required after every art change
-6. In game, build outfit presets 1–8 to match the slots
-
-`INSTALL.bat` in the zip automates step 4 for both folders. Windows blocks scripts downloaded
-through a browser, so right-click it → Properties → tick **Unblock** before it
-will run. Replacing the folder by hand is equally safe and is the documented
-path; the script only saves the delete.
 
 ### Keep exactly one mods folder
 
@@ -68,31 +78,24 @@ dir /s /b momi_profiles.json
 python -c "import zipfile; print([n for n in zipfile.ZipFile(r'<game>\assets.zip').namelist() if 'farmer_portrait' in n])"
 ```
 
-### Why step 4 says delete, not overwrite
+### Why step 4 says replace, not merge
 
-The export replaces DeUlo's example sprite mod, exactly as the readme's
-walkthrough describes ("open the example's art folder" and swap the images).
-Two silent failure modes come with doing that by hand:
+The export replaces DeUlo's example sprite mod, exactly as his readme describes
+("open the example's art folder" and swap the images). One silent failure mode
+comes with merging instead: **stale sprites outrank new ones.** Copying *over*
+the folder adds files but never removes them, and a leftover `winter_sunny.png`
+from an older export beats a new `beach.png` every time, because `season_weather`
+sits above `location` in the precedence list. The new portraits appear not to
+work, with no error anywhere.
 
-- **Stale sprites outrank new ones.** Extracting *over* the mod folder adds files
-  but never removes them. A leftover `winter_sunny.png` from an older export
-  beats a new `beach.png` every time, because `season_weather` sits above
-  `location` in the precedence list — so the new portraits appear not to work,
-  with no error anywhere. Deleting the folder first makes this impossible.
-- **Explorer's wrapper folder.** "Extract to `FarmerPortraitsExample\`" nests the
-  mod one level too deep, `manifest.json` ends up where MOMI does not look, and
-  MOMI simply does not list the mod. Use **Extract Here**.
+Delete the old folder first and that is impossible. Nothing else in the flow can
+prevent it — DeUlo's sprite lookup finds any `spr_farmer_portrait_*` that is
+installed, whether this tool wrote it or not.
 
-`INSTALL.bat` exists to do both correctly. MOMI does not record its library path
-anywhere on disk, so the script asks for it and validates it by looking for the
-`Farmer Portraits` base mod inside — which has to be there anyway, so a wrong
-folder and a missing dependency produce one clear error instead of two confusing
-ones. It confirms before deleting anything.
-
-It is a convenience, not a requirement, and it is deliberately not the primary
-instruction: a `.bat` that arrived inside a browser download carries Windows'
-Mark-of-the-Web and is blocked until unblocked by hand, which is a worse first
-experience than deleting a folder.
+> An `INSTALL.bat` used to do the delete-and-copy. It was dropped in favour of
+> this one line of instructions: a `.bat` that arrived inside a browser download
+> carries Windows' Mark-of-the-Web and is blocked until unblocked by hand, which
+> is a worse first experience than dragging a folder. Don't bring it back.
 
 ### Naming: do not rename the mod
 
@@ -136,7 +139,7 @@ node test_tool.mjs
 
 It runs the page against a small DOM shim and covers the grid, the tag rules,
 multiple portraits per slot, the pixel pipeline, saving and restoring, the export
-mapping, the generated companion mod, the installer, and the zip writer. It
+mapping, the generated slot table, the shipped outfit mod, and the zip writer. It
 writes `test_zip.zip` as a side effect, which is ignored by git.
 
 The check worth understanding is **PATTERNS vs the GML**. The tool only accepts
@@ -151,11 +154,20 @@ is worse than no check at all.
 
 ## The outfit half
 
-Every export also generates **`FarmerPortraitsSync\`**, a companion mod that
-swaps the farmer's outfit preset to match the portrait. The `tag -> slot` table
-is compiled into the GML as a literal, so there is no file to read at runtime and
-the table cannot drift from the sprites it shipped with. Both mods must be
-enabled in MOMI.
+**`FarmerPortraitsSync\`** swaps the farmer's outfit preset to match the
+portrait. It ships fixed, is installed once, and holds no data of its own.
+
+The `tag -> slot` table is generated per export as
+`FarmerPortraitsExample\gml\FarmerPortraitsSlots.gml`, which sets
+`global.__sage_fps_table`. **The table travels with the artwork it describes**,
+which is what makes the two impossible to get out of step — you cannot install
+new portraits and stale clothes, because they are the same folder. It is GML
+rather than JSON so there is no file reading, parsing or path handling at
+runtime; MOMI installs it like any other script.
+
+Either half works alone. Without the outfit mod the table is inert and portraits
+behave exactly as DeUlo shipped them. Without the table the outfit mod logs once
+through `mmapi_log_warn` and does nothing.
 
 It is a companion, not a fork: `deulo_farmer_portraits_context()` and
 `deulo_farmer_portraits_keys()` are global functions, so it walks *the same key

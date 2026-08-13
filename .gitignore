@@ -1,11 +1,11 @@
-# Local working notes: design record for the unbuilt companion mod, not part of
-# what ships. Kept on disk deliberately - read it before changing the tool.
+# Local working notes: the design record behind the tool and the outfit mod, not
+# part of what ships. Kept on disk deliberately - read it before changing either.
 PORTRAIT_TOOL_PRD.md
 
 # Test artifact, rewritten by every `node test_tool.mjs` run.
 test_zip.zip
 
-# Exports land here if you extract them in place.
+# Exports land here if you unzip them in place. FarmerPortraitsSync/ is NOT
+# ignored - it ships, and is the one mod folder that lives in this repo.
 FarmerPortraitsExample/
-INSTALL.bat
 *.zip
