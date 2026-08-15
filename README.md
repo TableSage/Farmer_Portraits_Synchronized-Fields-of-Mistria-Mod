@@ -1,5 +1,7 @@
 # Farmer Portraits Synchronized
 
+![The farmer walking to the beach and starting a conversation: the dialogue portrait and the mini-sprite are wearing the same summer outfit](docs/portrait-sync-demo.gif)
+
 Custom dialogue portraits for Fields of Mistria that also change your farmer's
 outfit to match.
 
@@ -11,7 +13,7 @@ with whichever portrait is on screen.
 > **Alpha.** Verified in game on Windows, by one person, on one install. Back up
 > your save and expect rough edges.
 
-**[Download the latest release](../../releases/latest)** — one zip, no build step.
+**[Download the latest release](../../releases/latest)**: one zip, no build step.
 Unzip it and read `README.txt`; it covers the install start to finish.
 
 ## What's in here
@@ -64,6 +66,8 @@ work between visits, and the outfit mod from step 1 never needs touching again.
 
 ## How it works
 
+![The builder with all eight slots filled: each tile lists its tags, and the portrait selected below carries seven of them at once](docs/portrait-tool.png)
+
 **8 slots, one per in-game outfit preset.** Grid position is the preset number,
 so the portrait in slot 3 is worn with preset 3.
 
@@ -77,7 +81,7 @@ outfit should cover all of them:
 ```
 
 **One portrait can answer to several tags.** The mod resolves a tag to a sprite
-file, so the same art in summer and at the beach really is two files — but you
+file, so the same art in summer and at the beach really is two files. But you
 upload it once and add a second tag to the same picture, rather than keeping two
 copies of the same PNG in sync by hand.
 
@@ -100,7 +104,7 @@ fixed.
 still works but has quietly lost a slice: `summer` outranks `beach`, so a beach
 portrait is simply gone all summer with no error anywhere. The panel lists the
 tags that win before this one and what each costs, with a button that adds the
-one tag which wins those contexts back — and when no tag can (there is no
+one tag which wins those contexts back. When no tag can (there is no
 `saturday_beach`), it says so instead of offering a button that would not work.
 
 **Export gives you one zip holding one correctly named mod folder.** The
