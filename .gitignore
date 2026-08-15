@@ -11,5 +11,7 @@ FarmerPortraitsExample/
 *.zip
 
 # Maintainer notes: rationale, engine facts, verified behaviour. README.txt is
-# the one that ships.
+# the one that ships. NOTES_portrait_tool.md is the commentary that used to sit
+# inside portrait_tool.html, lifted out so the download carries no dev notes.
 NOTES.md
+NOTES_portrait_tool.md

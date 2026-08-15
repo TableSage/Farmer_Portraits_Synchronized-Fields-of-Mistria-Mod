@@ -121,7 +121,8 @@ globalThis.URL.revokeObjectURL = () => {};
 const T = {};
 new Function('__T', script + `
   Object.assign(__T, {makeZip, crc32, processImage, toNative, finish, buildFiles,
-    statusOf, tagOf, validate, advisories, presetsNeeded, everyCard, slots, cells,
+    statusOf, tagOf, validate, advisories, presetsNeeded, everyCard, everyTrigger,
+    slots, cells, conflictsFor, coverFor, overlaps, blankTrig,
     shadowed, covered, regionOf, valuesFor, SPOILER_LOCATIONS, LOCATIONS, CUTSCENES,
     render, select, buildCards, acceptFiles, loadInto, restoreState, saveState,
     STORE, PATTERNS, TARGET_H, MOD_DIR, $});
@@ -133,6 +134,15 @@ const ok = (name, cond, extra='') => {
   else { console.log(`  FAIL  ${name} ${extra}`); fails++; }
 };
 const ctl = (slot, idx) => T.slots[slot].cards[idx]._els;
+// A portrait owns a list of triggers; almost every test here uses a portrait
+// with exactly one, so the third argument defaults to it.
+const tg = (slot, idx, ti=0) => T.slots[slot].cards[idx].trigs[ti];
+// Only the SELECTED tag has controls, so driving the second tag on a portrait
+// means clicking it in the tag list first - which is what a user does too.
+const pick = (slot, idx, ti) => {
+  T.slots[slot].cards[idx]._els.tagPicks[ti].onclick();
+  return T.slots[slot].cards[idx]._els;
+};
 const set = (slot, idx, field, v) => {
   const c = ctl(slot, idx);
   if (field === 'isDefault') c.isDefault.checked = v; else c[field].value = v;
@@ -145,7 +155,7 @@ ok('8 cells built', T.cells.length === 8, `got ${T.cells.length}`);
 ok('every cell has a caption',
    T.cells.every(c => c.querySelector('.cap').innerHTML !== ''));
 ok('empty slots read as skipped',
-   T.cells.every(c => c.querySelector('.cap').innerHTML.includes('no trigger set')));
+   T.cells.every(c => c.querySelector('.cap').innerHTML.includes('No trigger set')));
 ok('one card per slot to start', T.everyCard().length === 8);
 
 /* 2. tag logic */
@@ -226,15 +236,16 @@ console.log('\ncard controls');
 T.select(0);
 set(0, 0, 'fSeason', 'winter');
 set(0, 0, 'fWeather', 'rain');
-ok('dropdowns write through', T.tagOf(T.slots[0].cards[0]) === 'winter_rain');
-ok('tag line shows it', ctl(0,0).tagline.innerHTML.includes('winter_rain'));
+ok('dropdowns write through', T.tagOf(tg(0,0)) === 'winter_rain');
+ok('the tag list shows it',
+   ctl(0,0).tagPicks[0].innerHTML.includes('winter_rain'));
 set(0, 0, 'fKind', 'location');
 ok('value list repopulates for the kind',
    ctl(0,0).fValue.options.some(o => o.value === 'beach'));
 ok('incomplete trigger is called out',
-   ctl(0,0).tagline.innerHTML.includes('pick a value'));
+   ctl(0,0).note.innerHTML.includes('Pick a value'));
 set(0, 0, 'fKind', '');
-ok('clearing the kind restores the tag', T.tagOf(T.slots[0].cards[0]) === 'winter_rain');
+ok('clearing the kind restores the tag', T.tagOf(tg(0,0)) === 'winter_rain');
 
 /* 4. several portraits on one slot — the whole point of the overhaul */
 console.log('\nmultiple portraits per slot');
@@ -244,11 +255,11 @@ ok('both cards are addressable', !!ctl(0,1).fSeason);
 set(0, 1, 'fSeason', 'winter');
 set(0, 1, 'fWeather', 'thunder');
 ok('the two cards carry different tags',
-   T.tagOf(T.slots[0].cards[0]) === 'winter_rain' &&
-   T.tagOf(T.slots[0].cards[1]) === 'winter_thunder');
+   T.tagOf(tg(0,0)) === 'winter_rain' &&
+   T.tagOf(tg(0,1)) === 'winter_thunder');
 T.slots[0].cards[0].url = 'blob:fake'; T.render();
 ok('count badge rendered',
-   T.cells[0].querySelector('.tile').innerHTML.includes('class="count"'));
+   T.cells[0].querySelector('.tile').innerHTML.includes('class="count '));
 ok('the tile draws one image, not a stack',
    (T.cells[0].querySelector('.tile').innerHTML.match(/<img/g) || []).length === 1);
 T.slots[0].cards[0].url = ''; T.render();
@@ -257,17 +268,17 @@ ok('tile caption lists both',
    T.cells[0].querySelector('.cap').innerHTML.includes('winter_thunder'));
 T.$('addCard').onclick();
 ok('a third card appears', T.slots[0].cards.length === 3);
-T.slots[0].cards[2]._els.preview.__removeProbe = true;
 T.buildCards();
-T.$('cards').children[2].children[0].onclick({stopPropagation(){}});
+T.slots[0].cards[2]._els.delCard.onclick({stopPropagation(){}});
 ok('delete removes exactly one card', T.slots[0].cards.length === 2);
 ok('delete kept the right ones',
-   T.tagOf(T.slots[0].cards[0]) === 'winter_rain' &&
-   T.tagOf(T.slots[0].cards[1]) === 'winter_thunder');
+   T.tagOf(tg(0,0)) === 'winter_rain' &&
+   T.tagOf(tg(0,1)) === 'winter_thunder');
 T.select(1);
-ok('a lone card has no delete button',
-   T.$('cards').children[0].children[0].tagName !== 'button',
-   T.$('cards').children[0].children[0].tagName);
+ok('a lone card has no delete button', !T.slots[1].cards[0]._els.delCard);
+ok('the portrait delete is its own control, not a tag delete',
+   !!T.slots[0].cards[0]._els.delCard &&
+   !T.slots[0].cards[0]._els.tagXs.includes(T.slots[0].cards[0]._els.delCard));
 
 /* 5. default is global, not per slot */
 console.log('\nvalidation');
@@ -276,34 +287,35 @@ set(0, 0, 'isDefault', true);
 T.select(2);
 set(2, 0, 'isDefault', true);
 ok('only one default across all slots',
-   T.everyCard().filter(x => x.card.isDefault).length === 1);
-ok('the newest one won', T.slots[2].cards[0].isDefault === true);
-ok('the old one was cleared', T.slots[0].cards[0].isDefault === false);
+   T.everyTrigger().filter(x => x.trig.isDefault).length === 1);
+ok('the newest one won', tg(2,0).isDefault === true);
+ok('the old one was cleared', tg(0,0).isDefault === false);
 
 /* fill everything in, then check the guards. Season cycles faster than weather
    so every card lands on a distinct season_weather pair. */
 const SEA = ['spring','summer','fall','winter'], WEA = ['sunny','rain','thunder'];
 T.everyCard().forEach(({card}, i) => {
   card.name = `p${i}.png`; card.url = 'data:image/png;base64,AAAA'; card.img = {};
-  if (!card.isDefault){
-    card.season = SEA[i % 4];
-    card.weather = WEA[Math.floor(i / 4) % 3];
-    card.kind = ''; card.value = '';
-  }
+  card.trigs.forEach(t => {
+    if (t.isDefault) return;
+    t.season = SEA[i % 4];
+    t.weather = WEA[Math.floor(i / 4) % 3];
+    t.kind = ''; t.value = '';
+  });
 });
 T.render();
 ok('a complete board passes', T.validate().length === 0,
    JSON.stringify(T.validate()));
-const dup = T.slots[3].cards[0], keep = {...dup};
-dup.season = T.slots[4].cards[0].season;
-dup.weather = T.slots[4].cards[0].weather;
+const dup = tg(3,0), keep = {...dup};
+dup.season = tg(4,0).season;
+dup.weather = tg(4,0).weather;
 ok('duplicate tags caught across slots',
-   T.validate().some(p => p.includes('duplicate')));
+   T.validate().some(p => p.includes('Duplicate')));
 dup.season = keep.season; dup.weather = keep.weather;
-T.slots[2].cards[0].isDefault = false;
+tg(2,0).isDefault = false;
 ok('a board with no default is rejected',
    T.validate().some(p => p.includes('default')));
-T.slots[2].cards[0].isDefault = true;
+tg(2,0).isDefault = true;
 T.render();
 ok('back to valid', T.validate().length === 0);
 
@@ -317,16 +329,16 @@ ok('notice clears on the next drop',
    !T.$('status').innerHTML.includes('PNG only'));
 
 /* each problem is its own line, so a long list stays scannable */
-const wasDefault = T.slots[2].cards[0].isDefault;
-T.slots[2].cards[0].isDefault = false;
+const wasDefault = tg(2,0).isDefault;
+tg(2,0).isDefault = false;
 T.slots[1].cards[0].url = '';
 T.render();
 // Un-defaulting a card also strips its trigger, so this raises three problems:
 // missing image, invalid trigger, and no default anywhere.
 ok('problems are one per line',
-   (T.$('status').innerHTML.match(/class="line bad"/g) || []).length === 3,
+   (T.$('status').innerHTML.match(/class="line bad /g) || []).length === 3,
    JSON.stringify(T.$('status').innerHTML));
-T.slots[2].cards[0].isDefault = wasDefault;
+tg(2,0).isDefault = wasDefault;
 T.slots[1].cards[0].url = 'data:image/png;base64,AAAA';
 T.render();
 ok('the ready line is a single line',
@@ -376,15 +388,15 @@ const {files} = await T.buildFiles();
 const sidecar = JSON.parse(new TextDecoder().decode(
   files.find(f => f.name.endsWith('outfit_slots.json')).data));
 ok('a sprite pair per portrait',
-   files.filter(f => f.name.endsWith('.png')).length === T.everyCard().length &&
-   files.filter(f => f.name.endsWith('.meta.toml')).length === T.everyCard().length);
+   files.filter(f => f.name.endsWith('.png')).length === T.everyTrigger().length &&
+   files.filter(f => f.name.endsWith('.meta.toml')).length === T.everyTrigger().length);
 ok('manifest included', files.some(f => f.name.endsWith('manifest.json')));
 ok('every tag is in the sidecar',
-   Object.keys(sidecar.slots).length === T.everyCard().length,
+   Object.keys(sidecar.slots).length === T.everyTrigger().length,
    JSON.stringify(sidecar.slots));
 ok('slot 0\'s two portraits both point at slot 0',
-   sidecar.slots[T.tagOf(T.slots[0].cards[0])] === 0 &&
-   sidecar.slots[T.tagOf(T.slots[0].cards[1])] === 0,
+   sidecar.slots[T.tagOf(tg(0,0))] === 0 &&
+   sidecar.slots[T.tagOf(tg(0,1))] === 0,
    JSON.stringify(sidecar.slots));
 ok('indices are 0-based and within range',
    Object.values(sidecar.slots).every(v => v >= 0 && v < 8));
@@ -482,7 +494,7 @@ ok('render saves', store.has(T.STORE));
 const saved = JSON.parse(store.get(T.STORE));
 ok('saved shape is versioned', saved.v === 1 && saved.slots.length === 8);
 ok('triggers are saved',
-   saved.slots[0].cards[0].season === T.slots[0].cards[0].season);
+   saved.slots[0].cards[0].trigs[0].season === tg(0,0).season);
 ok('the image is saved as a data url, not a blob url',
    saved.slots[0].cards[0].url.startsWith('data:'),
    saved.slots[0].cards[0].url.slice(0, 20));
@@ -491,19 +503,22 @@ ok('the image is saved as a data url, not a blob url',
 ok('a stacked slot saves every card',
    saved.slots[0].cards.length === T.slots[0].cards.length);
 
-const before = JSON.stringify(T.slots.map(s => s.cards.map(c => c.season)));
-T.slots[0].cards[0].season = 'spring';
-T.slots[3].cards = [{...T.slots[3].cards[0]}];
+const seasons = () =>
+  JSON.stringify(T.slots.map(s => s.cards.flatMap(c => c.trigs.map(t => t.season))));
+const before = seasons();
+tg(0,0).season = 'spring';
+T.slots[3].cards = [{...T.slots[3].cards[0],
+                     trigs: T.slots[3].cards[0].trigs.map(t => ({...t}))}];
 T.restoreState();
 ok('restore brings the board back',
-   JSON.stringify(T.slots.map(s => s.cards.map(c => c.season))) === before);
+   seasons() === before);
 ok('restored cards decode into images', T.everyCard().every(x => !!x.card.img));
 ok('restore rejects a foreign payload', (() => {
   store.set(T.STORE, JSON.stringify({v:99, slots:[]}));
-  const kept = T.slots[0].cards[0].season;
+  const kept = tg(0,0).season;
   T.restoreState();
   store.set(T.STORE, saved && JSON.stringify(saved));
-  return T.slots[0].cards[0].season === kept;
+  return tg(0,0).season === kept;
 })());
 ok('restore survives junk', (() => {
   store.set(T.STORE, '{not json');
@@ -524,7 +539,7 @@ console.log('\npreset advice');
 ok('needs as many presets as the highest slot used', T.presetsNeeded() === 8);
 const stash = T.slots.map(s => s.cards);
 T.slots.forEach((s, i) => { if (i > 0 && i < 7) s.cards = [Object.assign({}, s.cards[0],
-  {season:'', weather:'', kind:'', value:'', isDefault:false})]; });
+  {trigs: [T.blankTrig()]})]; });
 ok('a gap below the highest slot is called out',
    T.advisories().some(m => m.includes('unused')), JSON.stringify(T.advisories()));
 T.slots.forEach((s, i) => { s.cards = stash[i]; });
@@ -534,11 +549,15 @@ ok('no advice once the slots are contiguous', T.advisories().length === 0,
 
 /* 11. dead triggers — art that exports fine and can never be reached in game */
 console.log('\ndead triggers');
-const mkCard = o => Object.assign({name:'', url:'', img:null, isDefault:false,
+const mkTrig = o => Object.assign({isDefault:false,
   season:'', weather:'', kind:'', value:''}, o);
-// One card per slot, empties left as they are so they drop out of the analysis.
+// One portrait per slot, empties left as they are so they drop out of the
+// analysis. A list entry may be an array, which builds one portrait carrying
+// several triggers - the case the whole conflict drawer exists for.
+const mkCard = o => ({name:'', url:'', img:null,
+  trigs: (Array.isArray(o) ? o : [o]).map(mkTrig)});
 const board = list => T.slots.forEach((s, i) => { s.cards = [mkCard(list[i] || {})]; });
-const deadTags = () => [...T.shadowed().entries()].map(([c]) => T.tagOf(c));
+const deadTags = () => [...T.shadowed().entries()].map(([t]) => T.tagOf(t));
 
 board([{season:'winter'},
        {season:'winter', kind:'inout', value:'indoor'},
@@ -546,11 +565,12 @@ board([{season:'winter'},
 ok('indoor + outdoor leave the plain season nothing',
    JSON.stringify(deadTags()) === '["winter"]', JSON.stringify(deadTags()));
 ok('the covering tags are named, and only those',
-   JSON.stringify(T.shadowed().get(T.slots[0].cards[0]).by.sort())
+   JSON.stringify(T.shadowed().get(tg(0,0)).by.sort())
      === '["winter_indoor","winter_outdoor"]');
-ok('it reads as a warning line, not a blocking problem',
-   T.advisories().some(m => m.includes('never appears')) &&
-   !T.validate().some(m => m.includes('never appears')));
+ok('it blocks the export rather than warning',
+   T.validate().some(m => m.includes('never shows')) &&
+   !T.advisories().some(m => m.includes('never shows')),
+   JSON.stringify([T.validate(), T.advisories()]));
 
 board([{season:'winter'}, {season:'winter', kind:'inout', value:'indoor'}]);
 ok('half a cover is not a cover', deadTags().length === 0, JSON.stringify(deadTags()));
@@ -574,6 +594,161 @@ ok('an ordinary board reports nothing', deadTags().length === 0,
    JSON.stringify(deadTags()));
 ok('naming a few of eighty locations covers nothing',
    T.covered({}, [{location:'beach'}, {location:'farm'}]) === false);
+
+/* 11b. conflicts — the drawer's whole model.
+
+   Two triggers can co-occur iff their regions agree on every dimension they
+   both name. That is the entire relation; everything the drawer says is read
+   off it plus the PATTERNS rank, so these check the relation rather than the
+   HTML it ends up as. */
+console.log('\nconflicts');
+ok('different dimensions can meet',
+   T.overlaps({season:'summer'}, {location:'beach'}) === true);
+ok('the same dimension twice cannot',
+   T.overlaps({location:'beach'}, {location:'inn'}) === false);
+ok('agreeing on a shared dimension still meets',
+   T.overlaps({season:'summer', location:'beach'}, {season:'summer'}) === true);
+ok('disagreeing on a shared dimension does not',
+   T.overlaps({season:'summer', location:'beach'}, {season:'winter'}) === false);
+
+// The example that started this: a beach outfit and a summer outfit. Season
+// outranks location, so the beach art is silently gone all summer.
+board([{kind:'location', value:'beach'}, {season:'summer'},
+       {kind:'location', value:'inn'}, {isDefault:true}]);
+const beach = T.conflictsFor(T.slots[0].cards[0]);
+ok('summer is found taking contexts from beach',
+   JSON.stringify(beach.map(r => r.tag)) === '["summer"]',
+   JSON.stringify(beach.map(r => r.tag)));
+ok('it says when, in words',
+   beach.find(r => r.tag === 'summer').takes[0].when === 'in summer');
+// No news is good news: only the tags taking something are listed. inn cannot
+// overlap beach at all, and default loses to it, so neither is worth a row.
+ok('a tag that cannot overlap is not listed',
+   !beach.some(r => r.tag === 'inn'));
+ok('a tag this portrait beats is not listed',
+   !beach.some(r => r.tag === 'default'));
+ok('and neither is the portrait itself',
+   !beach.some(r => r.tag === 'beach'));
+ok('beach is alive, just narrowed - not a dead trigger',
+   deadTags().length === 0, JSON.stringify(deadTags()));
+
+// The fix is one tag, not one per season: only summer was ever in dispute.
+const fix = T.coverFor(tg(0,0), tg(1,0));
+ok('covering the hole takes exactly one tag',
+   fix.ok === true && fix.tag === 'summer_beach', JSON.stringify(fix));
+board([[{kind:'location', value:'beach'},
+        {season:'summer', kind:'location', value:'beach'}],
+       {season:'summer'}, {isDefault:true}]);
+ok('one portrait can carry both tags',
+   T.slots[0].cards[0].trigs.length === 2 && T.everyCard().length === 8);
+const fixed = T.conflictsFor(T.slots[0].cards[0]);
+ok('with the cover in place the panel is empty',
+   fixed.length === 0, JSON.stringify(fixed.map(r => r.tag)));
+ok('and neither tag is dead', deadTags().length === 0, JSON.stringify(deadTags()));
+
+// The honest failure. A tag carries season, weather and ONE more condition, so
+// there is no shape holding a location and a weekday at once - and `day`
+// outranks `location`. That beach outfit can never appear on a Saturday.
+board([{kind:'location', value:'beach'}, {kind:'day', value:'saturday'},
+       {isDefault:true}]);
+const sat = T.conflictsFor(T.slots[0].cards[0]);
+ok('a weekday outranks a location', sat.length === 1);
+const noFix = sat.find(r => r.tag === 'saturday').takes[0].fix;
+ok('and offers no button, because no tag could work',
+   noFix.ok === false && noFix.why.includes('weekday'), JSON.stringify(noFix));
+ok('coverFor refuses rather than inventing an off-list shape',
+   !T.PATTERNS.includes('day_location'));
+
+// A portrait's own tags are the same pixels, so neither takes anything from
+// the other however the ranks fall.
+board([[{season:'winter'}, {season:'winter', weather:'rain'}], {isDefault:true}]);
+ok('a portrait\'s own tags never conflict with each other',
+   T.conflictsFor(T.slots[0].cards[0]).length === 0);
+
+/* 11c. several triggers on one portrait — one upload, many tags */
+console.log('\nmultiple triggers per portrait');
+board([{kind:'location', value:'beach'}, {isDefault:true}]);
+T.select(0);
+T.slots[0].cards[0]._els.addTag.onclick();
+ok('the add-tag button adds one', T.slots[0].cards[0].trigs.length === 2);
+ok('and selects the new tag, so it is the one being edited',
+   T.slots[0].cards[0]._sel === 1);
+const t2 = pick(0, 0, 1);
+t2.fSeason.value = 'summer'; t2.fSeason.onchange();
+t2.fKind.value = 'location'; t2.fKind.onchange();
+t2.fValue.value = 'beach'; t2.fValue.onchange();
+ok('it writes through to its own tag',
+   T.tagOf(tg(0,0,1)) === 'summer_beach', T.tagOf(tg(0,0,1)));
+ok('the slot caption lists both tags',
+   T.cells[0].querySelector('.cap').innerHTML.includes('summer_beach') &&
+   T.cells[0].querySelector('.cap').innerHTML.includes('>beach<'));
+T.everyCard().forEach(({card}) => {
+  card.url = 'data:image/png;base64,AAAA'; card.img = fakeImg; });
+const multi = await T.buildFiles();
+const names = multi.files.map(f => f.name);
+ok('one sprite per tag, both from the one portrait',
+   names.some(n => n.endsWith('spr_farmer_portrait_beach.png')) &&
+   names.some(n => n.endsWith('spr_farmer_portrait_summer_beach.png')));
+const multiSide = JSON.parse(new TextDecoder().decode(
+  multi.files.find(f => f.name.endsWith('outfit_slots.json')).data));
+ok('both tags map to the portrait\'s own slot',
+   multiSide.slots.beach === 0 && multiSide.slots.summer_beach === 0,
+   JSON.stringify(multiSide.slots));
+ok('ticking default clears it across triggers, not just cards',
+   (() => { const c = pick(0, 0, 1);
+     c.isDefault.checked = true; c.isDefault.onchange();
+     return T.everyTrigger().filter(x => x.trig.isDefault).length === 1
+         && tg(0,0,1).isDefault === true; })());
+ok('every tag row carries its own remove button',
+   T.slots[0].cards[0]._els.tagXs.every(Boolean));
+ok('a tag can be removed without touching the art',
+   (() => { const card = T.slots[0].cards[0], was = card.url;
+     card._els.tagXs[1].onclick();
+     return card.trigs.length === 1 && card.url === was; })());
+ok('and the selection falls back to a tag that still exists',
+   T.slots[0].cards[0]._sel === 0);
+ok('a lone tag has no remove button, so a portrait keeps one',
+   T.slots[0].cards[0]._els.tagXs[0] === null);
+
+/* 11d. the conflict panel is always on, and the verdicts drive the colours */
+console.log('\nconflict panel');
+board([{kind:'location', value:'beach'}, {season:'summer'}, {isDefault:true}]);
+T.select(0);
+// The panel is assembled with append(), and the shim's innerHTML only reports
+// what was assigned as a string, so the tree is walked rather than read off the
+// top node.
+const dump = n => !n ? '' : [n.innerHTML || '', n.textContent || '']
+  .concat((n.children || []).map(dump)).join(' ');
+const panel = () => dump(T.slots[0].cards[0]._els.panel);
+ok('the panel is drawn without being asked for', panel().includes('summer'),
+   panel().slice(0, 160));
+ok('the selected tag row carries the pointer',
+   T.slots[0].cards[0]._els.tagRows[0].className.includes('sel'));
+ok('it offers the covering tag by name', panel().includes('summer_beach'));
+ok('it says when the loss happens', panel().includes('in summer'));
+ok('it does not list the tags that are fine',
+   !panel().includes('inn'), panel());
+ok('a narrowed tag is amber, not red',
+   T.slots[0].cards[0]._els.tagPicks[0].className.includes('narrowed'));
+ok('a clean tag is green',
+   (() => { T.select(1); return T.slots[1].cards[0]._els.tagPicks[0]
+     .className.includes('clean'); })());
+T.select(0);
+ok('a narrowed tag does not block the export',
+   !T.validate().some(m => m.includes('never appear')));
+
+/* red is the blocking one: art the game cannot reach */
+board([{season:'winter'}, {season:'winter', kind:'inout', value:'indoor'},
+       {season:'winter', kind:'inout', value:'outdoor'}, {isDefault:true}]);
+T.select(0);
+ok('a dead tag is red', T.slots[0].cards[0]._els.tagPicks[0]
+   .className.includes('never'));
+ok('and blocks the export', T.validate().some(m => m.includes('never shows')),
+   JSON.stringify(T.validate()));
+ok('the panel says so at the top', panel().includes('never shows'));
+ok('it is no longer a mere advisory',
+   !T.advisories().some(m => m.includes('never shows')),
+   JSON.stringify(T.advisories()));
 
 /* 12. spoiler options — names that give away story beats stay off until asked */
 console.log('\nspoilers');
@@ -617,8 +792,8 @@ set(0, 0, 'fValue', 'unlocking_the_mines_pt_1');
 T.$('spoilers').checked = false;
 T.$('spoilers').onchange();
 ok('a spoiler trigger already built still holds',
-   T.tagOf(T.slots[0].cards[0]) === 'unlocking_the_mines_pt_1' &&
-   T.statusOf(T.slots[0].cards[0]).state === 'ok');
+   T.tagOf(tg(0,0)) === 'unlocking_the_mines_pt_1' &&
+   T.statusOf(tg(0,0)).state === 'ok');
 ok('its card keeps offering the kind and the value',
    kinds().includes('cutscene') && vals().includes('unlocking_the_mines_pt_1'));
 ok('and does not nag about the rest once one is chosen',

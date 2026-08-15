@@ -3,163 +3,112 @@
 <head>
 <meta charset="utf-8">
 <title>Farmer Portraits - Preset Builder</title>
+<link rel="stylesheet"
+  href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/nes.css@2.3.0/css/nes.min.css">
 <style>
-/* One hue family (rose-plum, ~335) stepped by lightness, plus three status
-   colours dark enough to read as text on any surface here. Borders are all
-   hairlines: --line inside a panel, --edge for the panel itself. */
-:root{
-  --page:#231d28; --on-page:#e8dae2;
-  --panel:#fbf1f5; --panel-2:#f4e5ec; --tile:#efe6ee; --sel:#e7d8e4;
-  --line:#d9c6d2; --edge:#2f2630;
-  --ink:#3d2f3a; --dim:#7a6874;
-  --ok:#2f7350; --bad:#a83a3a; --warn:#8a5a12;
-}
+html{font-size:12px}
+html,body,button,select,input{font-family:"Press Start 2P",monospace}
+button,select,input,body{font-size:1rem}
 *{box-sizing:border-box}
-body{margin:0;padding:24px 20px 56px;background:var(--page);color:var(--ink);
-  font:400 15px/1.5 system-ui,"Segoe UI",Inter,Helvetica,Arial,sans-serif}
-/* Sized to hug the 4-wide grid rather than fill the window. */
-.wrap{max-width:980px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
-#cards{display:flex;flex-direction:column;gap:12px}
+:root{--cursor-nes:url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAAzElEQVRYR+2X0Q6AIAhF5f8/2jYXZkwEjNSVvVUjDpcrGgT7FUkI2D9xRfQETwNIiWO85wfINfQUEyxBG2ArsLwC0jioGt5zFcwF4OYDPi/mBYKm4t0U8ATgRm3ThFoAqkhNgWkA0jJLvaOVSs7j3qMnSgXWBMiWPXe94QqMBMBc1VZIvaTu5u5pQewq0EqNZvIEMCmxAawK0DNkay9QmfFNAJUXfgGgUkLaE7j/h8fnASkxHTz0DGIBMCnBeeM7AArpUd3mz2x3C7wADglA8BcWMZhZAAAAAElFTkSuQmCC) 14 0,pointer}
+.nes-btn,.nes-select select{border-image-repeat:stretch}
 
-.panel{background:var(--panel);border:1px solid var(--edge);border-radius:10px;
-  padding:18px 20px}
-/* Editor cards sit beneath the top card: same border, one step darker, so they
-   read as nested without a second frame competing for attention. */
-.card{background:var(--panel-2);position:relative;padding:16px 20px}
+body{line-height:1.9;padding:2rem 2rem 5rem}
+.wrap{max-width:150rem;margin:0 auto;display:flex;flex-direction:column;gap:2rem}
+#cards{display:flex;flex-direction:column;gap:3rem}
+h1{font-size:2rem;margin:0}
+h2{font-size:1.5rem;margin:0}
+.card > .title{font-size:1.5rem;margin-bottom:5.5rem}
+.nes-container.with-title > .title{font-size:1.35rem;line-height:1;
+  margin-top:-2.3rem}
 
-/* Tile and tag list side by side. Under the tile the tags wrapped and threw the
-   rows out of line; beside it the list scrolls at the tile's own height. */
-/* minmax(0,1fr) and min-width:0 both matter: a grid column sizes to its content
-   by default, so one long unbreakable tag would widen slot 1 and squeeze the
-   rest of the row instead of clipping. */
-.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
-.cell{display:flex;gap:10px;padding:6px;border-radius:8px;cursor:pointer;
-  min-width:0;border:1px solid transparent}
-.cell.sel{background:var(--sel);border-color:var(--edge)}
-.cell.drop{background:#e6f1e9;border-color:var(--ok)}
-.tile{position:relative;flex:none;width:98px;height:174px;background:var(--tile);
-  border:1px solid var(--line);border-radius:4px;overflow:hidden;
+.grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1.5rem}
+
+.cell{display:flex;flex-direction:column;min-width:0;cursor:var(--cursor-nes);
+  padding:1.5rem 1rem 1rem}
+.cellbody{display:flex;gap:1rem;min-width:0}
+
+.cell.is-dark{margin:0}
+.cell.is-dark::after{content:none}
+.cell.drop{opacity:.6}
+
+.tile{position:relative;flex:none;height:16rem;aspect-ratio:5/9;overflow:hidden;
   display:flex;align-items:center;justify-content:center}
-.cell.sel .tile{border-color:var(--edge)}
-.tile img{max-width:100%;max-height:100%;image-rendering:pixelated;display:block}
-/* The number sits over artwork, so it needs its own opaque chip. */
-.tile .num{position:absolute;top:0;left:0;padding:0 6px;z-index:2;
-  font-size:12px;font-weight:600;color:var(--dim);background:#fff;
-  border-right:1px solid var(--line);border-bottom:1px solid var(--line);
-  border-bottom-right-radius:4px}
-.tile .count{position:absolute;bottom:4px;right:4px;padding:1px 7px;z-index:2;
-  font-size:12px;font-weight:600;color:#fff;background:var(--ok);border-radius:9px}
-.tile .empty{font-size:13px;color:var(--dim)}
-/* Tags are identifiers that end up in filenames, so they stay monospace while
-   the messages beside them are sans - the contrast is doing hierarchy work.
-   One line each, clipped: the whole tag is readable in the editor below, and
-   wrapping here is what threw the rows out of line in the first place. */
-.cap{flex:1;min-width:0;height:174px;overflow-y:auto;font-size:12px;line-height:1.6}
-.cap b,.cap i,.cap s{display:block;font-weight:600;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cap b{color:var(--ok);font-family:ui-monospace,Consolas,"Courier New",monospace}
-.cap b.dead{color:var(--warn);text-decoration:line-through}
-.cap i{color:var(--bad);font-style:normal}
-.cap s{color:var(--dim);text-decoration:none;font-weight:400}
+.tile img{max-width:100%;max-height:100%;image-rendering:pixelated}
+.tile .count{position:absolute;bottom:0;right:0}
+.tile .empty{opacity:.6}
 
-/* The two headings on the dark page, same treatment at two sizes. Title case
-   with the tracking pulled back in: letterspacing is a fix for capitals, and at
-   these sizes normal words want slightly less than default, not more. They both
-   grow a step to hold the same weight on the page that the capitals did. */
-.pageHead,.slotHead{font-weight:600;letter-spacing:-.01em;color:var(--on-page)}
-.pageHead{margin:0 0 -2px;font-size:27px}
-.slotHead{margin:6px 0 -4px;font-size:20px}
-/* Preview, then the trigger in two columns, then tag and warnings on the right
-   where they can be scanned down a stack of cards. */
-.detail{display:grid;grid-template-columns:142px 1fr 232px;gap:22px;
-  align-items:start}
-/* Checkerboard, so a background the user forgot to remove in Picrew is obvious
-   here rather than in game. The art fills the box edge to edge, and the box is
-   the same size empty or filled so an upload doesn't shift the row. */
-.preview{width:142px;height:252px;border:1px dashed var(--line);border-radius:4px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  cursor:pointer;overflow:hidden;background-color:#f7f2f7;background-size:14px 14px;
-  background-position:0 0,7px 7px;
+.cap{flex:1;min-width:0;height:16rem;overflow-y:auto}
+.cap b{display:block;font-weight:400;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.cap .tag{max-width:100%;overflow:hidden;text-overflow:ellipsis;
+  vertical-align:bottom}
+
+.tag{display:inline-block;padding:0 .4rem;color:#fff;background:#212529;
+  overflow-wrap:anywhere;vertical-align:baseline}
+.cell.is-dark .tag{color:#212529;background:#fff}
+
+.detail{display:grid;grid-template-columns:26rem 28rem 36rem minmax(0,1fr);
+  gap:1.5rem;align-items:stretch}
+.detail > *{display:flex;flex-direction:column;gap:1rem;min-width:0}
+
+.preview{position:relative;padding:0;aspect-ratio:5/9;cursor:var(--cursor-nes);
+  display:flex;flex-direction:column;align-items:center;justify-content:center}
+.preview::before{content:'';position:absolute;inset:0;opacity:.14;
+  background-size:2rem 2rem;background-position:0 0,1rem 1rem;
   background-image:
-    linear-gradient(45deg,#e0d5e2 25%,transparent 25%,transparent 75%,#e0d5e2 75%),
-    linear-gradient(45deg,#e0d5e2 25%,transparent 25%,transparent 75%,#e0d5e2 75%)}
-.preview.filled{border-style:solid}
-.preview img{width:100%;height:100%;object-fit:contain;image-rendering:pixelated;
-  display:block}
-.preview .arrow{font-size:30px;line-height:1;color:var(--dim)}
-.preview .lbl{margin-top:4px}
+    linear-gradient(45deg,currentColor 25%,transparent 25%,transparent 75%,currentColor 75%),
+    linear-gradient(45deg,currentColor 25%,transparent 25%,transparent 75%,currentColor 75%)}
+.preview img{position:relative;width:100%;height:100%;object-fit:contain;
+  image-rendering:pixelated}
+.preview .arrow{font-size:4rem;line-height:1}
+.filename{overflow-wrap:anywhere}
 
-.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px}
-.field{display:flex;flex-direction:column;gap:4px}
-/* One small-caps label style for every label on the card. */
-.field label,.preview .lbl{font-size:12px;font-weight:600;letter-spacing:.08em;
-  text-transform:uppercase;color:var(--dim)}
-/* Held a size below the body text: the dropdowns are the widest thing on the
-   card and the tag column beside them is worth more than their bulk. */
-select{font:inherit;font-size:14px;padding:5px 8px;border:1px solid var(--line);
-  border-radius:5px;background:#fff;color:var(--ink);width:100%}
-select:disabled{background:#ece2e8;color:var(--dim)}
-.chk{grid-column:1 / -1;display:flex;gap:8px;align-items:center;
-  font-size:14px;font-weight:600;cursor:pointer}
-.chk input{width:17px;height:17px;accent-color:#b06489}
-/* Right padding keeps the tag clear of the delete button in the corner. */
-.meta{display:flex;flex-direction:column;gap:6px;padding-right:26px}
-.tagline code{display:block;padding:5px 8px;border:1px solid var(--ok);
-  border-radius:5px;color:var(--ok);font-size:13px;overflow-wrap:anywhere}
-.tagline .bad{color:var(--bad);font-size:13px;font-weight:600}
-/* A tag that is valid but unreachable: it exports, it just never shows up. */
-.tagline code.dead{border-color:var(--warn);color:var(--warn)}
-.tagline .warn{display:block;margin-top:4px;color:var(--warn);font-size:12px}
-.filename{font-size:12px;color:var(--dim);overflow-wrap:anywhere}
+.taglist{table-layout:auto;width:100%}
+.taglist .arrow{width:1%;padding-right:.5rem;white-space:nowrap}
+.taglist .tagpick{width:100%;margin:0;padding:.25rem 0;border:0;background:none;
+  text-align:left;opacity:.6;cursor:var(--cursor-nes)}
+.taglist .tagpick.sel{opacity:1}
+.taglist .tagx{margin:0;padding:1px 4px;line-height:1}
+.taglist td{vertical-align:middle;border-right-width:0}
+.taglist td::before,.taglist td::after{display:none}
 
-/* Flex-centred rather than line-height-centred, then nudged: the multiplication
-   sign's ink sits low in its line box, so centring the box leaves the glyph
-   about 2px below the middle of the button. The padding lifts it back. */
-.del{position:absolute;top:10px;right:12px;width:26px;height:26px;
-  padding:0 0 4px 1px;display:flex;align-items:center;justify-content:center;
-  font-size:17px;line-height:1;border-radius:5px;border:1px solid var(--line);
-  background:#fff;color:var(--dim);cursor:pointer}
-.del:hover{background:#fbeded;border-color:var(--bad);color:var(--bad)}
+.nes-icon.is-small{vertical-align:middle;top:-1px}
+.nes-text.is-error,.nes-icon.close.bad::before{color:#ce372b}
+.cell.is-dark .nes-text.is-error,
+.cell.is-dark .nes-icon.close.bad::before{color:#e76e55}
+.tagx .nes-icon.close::before{color:#fff}
 
-/* Destructive on the left, the good one on the right and three times as wide.
-   Same type and shape for both so the pair reads as one control; only colour
-   separates them. Status spans the full width underneath. */
-.foot{margin-top:14px;display:grid;grid-template-columns:1fr 3fr;gap:10px}
-.foot button{width:100%}
-button{font:inherit;font-size:15px;font-weight:600;padding:10px 18px;
-  border:1px solid var(--line);border-radius:6px;background:#fff;
-  color:var(--ink);cursor:pointer}
-button:hover:not(:disabled){background:#f6ecf1}
-button:disabled{opacity:.45;cursor:not-allowed}
-#export{background:#dcefe1;border-color:#4f8f63;color:#24583a}
-#export:hover:not(:disabled){background:#cbe7d3}
-#reset{background:#eae0d3;border-color:#a08a70;color:#5a4632}
-#reset:hover:not(:disabled){background:#e0d3c1}
-button.add{width:100%;background:transparent;border-style:dashed;
-  border-color:#584655;color:var(--on-page)}
-button.add:hover:not(:disabled){background:#2e2733}
-/* One problem per line, straight under the grid they refer to. Joined with
-   separators they ran to three wrapped lines and none were scannable. */
-#status{display:block;font-size:14px;font-weight:500;margin-top:14px}
-#status .line{padding:1px 0}
-#status .bad{color:var(--bad)} #status .ok{color:var(--ok)}
-#status .warn{color:var(--warn)}
-.note{font-size:13px;color:var(--dim);margin:12px 0 0;line-height:1.6}
-.note b{color:var(--ink);font-weight:600}
-/* The next-steps note after an export: same place as the warnings it replaces,
-   boxed so it reads as a result rather than another line of status. */
-.note.box{border:1px solid var(--line);border-radius:8px;padding:10px 14px;
-  background:#fffafc;color:var(--ink)}
-.gridfoot{display:flex;justify-content:space-between;align-items:flex-end;
-  gap:16px;flex-wrap:wrap}
-.gridfoot .note{margin-bottom:0}
-.toggles{display:flex;gap:18px;flex-wrap:wrap}
-.toggle{display:flex;gap:8px;align-items:center;font-size:14px;font-weight:600;
-  color:var(--ink);white-space:nowrap;cursor:pointer;user-select:none}
-.toggle input{width:17px;height:17px;accent-color:#c06a92;cursor:pointer}
-/* Display-only. The export mirrors unconditionally - this just previews it, so
-   it must never be read back when building. */
-#wrap.flipped .tile img, #wrap.flipped .preview img{transform:scaleX(-1)}
+.toggles label,.chk{display:inline-flex;align-items:center;line-height:1;
+  cursor:var(--cursor-nes)}
+.nes-checkbox{margin-left:23px}
+.nes-checkbox+span::before,.nes-checkbox:checked+span::before{
+  left:-23px;top:-3.4px;transform:scale(.85);transform-origin:0 0}
+
+.fields{display:flex;flex-direction:column;gap:1rem}
+select:disabled{opacity:.6}
+.nes-text.is-disabled{color:inherit;opacity:.6}
+
+.ladder,.ladder ul{padding-left:0}
+.ladder ul{margin:1rem 0 0}
+.ladder li + li{border-top:1px solid #d3d3d3;margin-top:1.5rem;
+  padding-top:1.5rem}
+.take{display:block}
+.take .cover,.take .no{display:table;margin:1.25rem 0 .25rem}
+.take .cover{display:flex;width:fit-content;align-items:center;gap:.5rem;
+  text-align:left;overflow-wrap:anywhere}
+
+.gridfoot{margin-top:2rem}
+.foot{display:flex;justify-content:space-between;align-items:center;
+  gap:2rem;flex-wrap:wrap;margin-top:2rem}
+.foot .nes-btn{margin:0}
+.toggles{display:flex;gap:2rem;flex-wrap:wrap}
+.acts{display:flex;gap:1rem}
+#addCard{margin:0;align-self:flex-start}
+#status{display:flex;flex-direction:column;gap:1rem;margin-top:2rem}
+
+#wrap.flipped .tile img,#wrap.flipped .preview img{transform:scaleX(-1)}
 </style>
 </head>
 <body>
@@ -167,44 +116,41 @@ button.add:hover:not(:disabled){background:#2e2733}
 
   <h1 class="pageHead">Farmer Portrait Binding Tool</h1>
 
-  <!-- Tiles, then what is wrong with them, then the controls: nothing between
-       the grid and its own warnings. -->
-  <div class="panel">
+  <div class="nes-container with-title">
+    <p class="title">Outfit Slots</p>
     <div class="grid" id="grid"></div>
     <span id="status"></span>
-    <p class="note box" id="afterExport" style="display:none"></p>
+
+    <div class="nes-container is-dark" id="afterExport"
+      style="display:none"></div>
     <div class="gridfoot">
-      <p class="note"><b>Slot number = in-game preset slot.</b></p>
-      <div class="toggles">
-        <label class="toggle" title="The export always mirrors. This only changes what you see here.">
-          <input type="checkbox" id="flip"> Preview flipped images</label>
-        <label class="toggle" title="Adds every cutscene and the late-game and secret locations to the dropdowns. Names only, but they give away story beats.">
-          <input type="checkbox" id="spoilers"> Include spoiler options</label>
-      </div>
+      <p>Slot number = in-game preset slot.</p>
     </div>
     <div class="foot">
-      <button id="reset"
-        title="Your work is saved in this browser. This throws it away.">Start over</button>
-      <button id="export">Finish and export</button>
+      <div class="toggles">
+        <label title="The export always mirrors. This only changes what you see here.">
+          <input type="checkbox" class="nes-checkbox" id="flip">
+          <span>Preview Flipped Images</span></label>
+        <label title="Adds every cutscene and the late-game and secret locations to the dropdowns. Names only, but they give away story beats.">
+          <input type="checkbox" class="nes-checkbox" id="spoilers">
+          <span>Include Spoiler Options</span></label>
+      </div>
+      <div class="acts">
+        <button class="nes-btn is-error" id="reset"
+          title="Your work is saved in this browser. This throws it away.">Start Over</button>
+        <button class="nes-btn is-success" id="export">Finish and Export</button>
+      </div>
     </div>
   </div>
 
   <h2 class="slotHead" id="slotHead">Slot 1</h2>
   <div id="cards"></div>
-  <button class="add" id="addCard">+ Add another portrait to this slot</button>
+  <button class="nes-btn is-primary" id="addCard">+ Add Another Portrait to This Slot</button>
 
 </div>
 <input type="file" id="picker" accept="image/png,.png" multiple style="display:none">
 <script>
 "use strict";
-
-/* ------------------------------------------------------------------ data
-   Vocabulary and the precedence list are transcribed from the mod. PATTERNS
-   must stay identical to deulo_farmer_portraits_keys() in FarmerPortraits.gml;
-   `node test_tool.mjs` diffs the two and is the thing to run after any edit
-   here. An off-list tag is never looked up in game and fails silently, which is
-   undebuggable without that check.                                           */
-
 const SEASONS = ['spring','summer','fall','winter'];
 const WEATHER = ['sunny','rain','thunder','special'];
 const DAYS = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
@@ -303,16 +249,6 @@ const VALUES = {
   daynumber: Array.from({length:28},(_,i)=>String(i+1)),
 };
 
-/* ------------------------------------------------------------------ spoilers
-   DeUlo lists both vocabularies behind spoiler tags: the locations as "some
-   late-game / secret spots", the cutscenes as heavy story spoilers including
-   the mines quest. Every cutscene name is therefore hidden by default, and the
-   locations are split - the everyday map stays available, because a tool where
-   you cannot pick `farm` without opting into spoilers is a worse tool.
-
-   The lists themselves are never filtered, only what the dropdowns offer: a tag
-   already chosen stays valid and keeps working, and the dead-trigger maths
-   still counts all 78 locations whether or not they are on screen. */
 const SPOILER_LOCATIONS = new Set(`abandoned_mines abandoned_pit aldaria
 beach_secret caldarus_house dragonsworn_glade dungeon earth_seal fire_seal
 narrows_secret priestess_quarters ruins_seal seridias_chamber seridias_house
@@ -321,8 +257,6 @@ western_ruins`.split(/\s+/));
 
 let spoilers = false;
 
-// The blank row doubles as the explanation when the toggle is what emptied the
-// list. Picking Cutscene with spoilers off otherwise just looks broken.
 function hintFor(kind, opts){
   if (!VALUES[kind] || !opts) return 'select...';
   const hidden = VALUES[kind].length - opts.length;
@@ -331,9 +265,6 @@ function hintFor(kind, opts){
                      : 'enable spoiler options to see';
 }
 
-// What the Value dropdown offers for a kind. The card's own value is always
-// included even when it is a spoiler, so unticking the box can never silently
-// drop a trigger someone already built.
 function valuesFor(kind, keep){
   const all = VALUES[kind];
   if (!all || spoilers) return all;
@@ -343,39 +274,25 @@ function valuesFor(kind, keep){
   return all;
 }
 
-const SLOTS = 8;                       // hard constraint: the game has 8 presets
-const TARGET_H = 180;                  // DEULO_FP_VANILLA_PORTRAIT_H -> fit 1.0
-// The export is exactly one mod folder, already named the way it has to land, so
-// the whole install is "unzip, drag the folder in". The outfit mod is NOT built
-// here - it ships fixed beside this file and is installed once. Only the table
-// it reads is generated, and that travels with the artwork it describes.
+const SLOTS = 8;
+const TARGET_H = 180;
+
 const MOD_DIR = 'FarmerPortraitsExample';
 
-/* ----------------------------------------------------------------- state
-   A slot is a list of portraits, not one portrait. Several tags can point at
-   the same in-game outfit - "my winter coat covers all four winter weathers" -
-   so the tag is what varies and the slot number is what they share. */
-
-/* url is the *downsampled* PNG as a data URL - see toNative(). Uploads are
-   reduced to native pixels the moment they land, so the preview, the export and
-   the saved copy are all the same handful of kilobytes, and nothing has to hold
-   on to a 540x960 File. */
-const blank = () => ({name:'', url:'', img:null,
-  isDefault:false, season:'', weather:'', kind:'', value:''});
+const blankTrig = () =>
+  ({isDefault:false, season:'', weather:'', kind:'', value:''});
+const blank = () => ({name:'', url:'', img:null, trigs:[blankTrig()]});
 const slots = Array.from({length:SLOTS}, () => ({cards:[blank()]}));
 let current = 0;
-// Shown on the status line until the next file lands. Rejections have to say
-// something: a dropped .jpg that vanishes silently reads as a broken tool.
+
 let notice = '';
+
+const everyTrigger = () => slots.flatMap((s, slot) =>
+  s.cards.flatMap((card, idx) =>
+    card.trigs.map((trig, ti) => ({card, trig, slot, idx, ti}))));
 
 const everyCard = () =>
   slots.flatMap((s, slot) => s.cards.map((card, idx) => ({card, slot, idx})));
-
-/* ------------------------------------------------------------- persistence
-   Building eight portraits is half an hour of work; losing it to a stray reload
-   is not acceptable. Saving is possible at all only because uploads are stored
-   downsampled - a 90x160 PNG is a few KB, where the Picrew original is tens of
-   KB and eight of them would not fit in localStorage. */
 
 const STORE = 'farmerPortraitsSync.v1';
 let restoring = false;
@@ -386,12 +303,12 @@ function saveState(){
   try {
     localStorage.setItem(STORE, JSON.stringify({v:1, current, spoilers,
       slots: slots.map(s => ({cards: s.cards.map(c => ({
-        name:c.name, url:c.url, isDefault:c.isDefault, season:c.season,
-        weather:c.weather, kind:c.kind, value:c.value,
+        name:c.name, url:c.url,
+        trigs: c.trigs.map(t => ({isDefault:t.isDefault, season:t.season,
+          weather:t.weather, kind:t.kind, value:t.value})),
       }))}))}));
     saveNote = '';
   } catch (err){
-    // Quota, private browsing, a locked-down browser - all the same to the user.
     saveNote = 'browser storage is unavailable, your work is not being saved';
   }
 }
@@ -402,35 +319,34 @@ function restoreState(){
   if (!raw) return;
   let data;
   try { data = JSON.parse(raw); } catch (err){ return; }
-  // Anything unrecognised is dropped rather than half-applied: a broken restore
-  // that silently loses one card is worse than starting clean.
+
   if (!data || data.v !== 1 || !Array.isArray(data.slots)) return;
   restoring = true;
+  const trigOf = t => Object.assign(blankTrig(), {
+    isDefault: !!t.isDefault,
+    season: SEASONS.includes(t.season) ? t.season : '',
+    weather: WEATHER.includes(t.weather) ? t.weather : '',
+    kind: KINDS.some(k => k[0] === t.kind) ? t.kind : '',
+    value: String(t.value || ''),
+  });
   data.slots.slice(0, SLOTS).forEach((s, i) => {
     if (!s || !Array.isArray(s.cards) || !s.cards.length) return;
     slots[i].cards = s.cards.map(c => Object.assign(blank(), {
       name: String(c.name || ''), url: typeof c.url === 'string' ? c.url : '',
-      isDefault: !!c.isDefault,
-      season: SEASONS.includes(c.season) ? c.season : '',
-      weather: WEATHER.includes(c.weather) ? c.weather : '',
-      kind: KINDS.some(k => k[0] === c.kind) ? c.kind : '',
-      value: String(c.value || ''),
+
+      trigs: Array.isArray(c.trigs) && c.trigs.length
+        ? c.trigs.map(trigOf) : [trigOf(c)],
     }));
   });
   if (Number.isInteger(data.current) && data.current >= 0 && data.current < SLOTS)
     current = data.current;
-  // Remembered so nobody has to opt in twice, but never inferred from the board:
-  // restoring a build that uses a cutscene does not turn the names back on.
+
   spoilers = !!data.spoilers;
   $('spoilers').checked = spoilers;
   restoring = false;
-  // Decoding is async, so a card is "still loading" for a frame or two. Export
-  // is gated on card.img, not card.url, so it cannot race ahead of this.
+
   everyCard().forEach(({card}) => { if (card.url) attach(card); });
 }
-
-/* --------------------------------------------------------------- tag logic
-   Ported verbatim from make_mapping.py, which is validated and in use. */
 
 function shapeOf(c){
   if (c.isDefault) return (c.season || c.weather || c.kind) ? 'x' : 'default';
@@ -446,34 +362,17 @@ function tagOf(c){
 }
 function statusOf(c){
   if (!c.isDefault && !c.season && !c.weather && !c.kind)
-    return {state:'empty', msg:'no trigger set'};
+    return {state:'empty', msg:'No trigger set'};
   if (c.kind && VALUES[c.kind] && !c.value)
-    return {state:'bad', msg:'pick a value'};
+    return {state:'bad', msg:'Pick a value'};
   if (!PATTERNS.includes(shapeOf(c)))
-    return {state:'bad', msg:'not a valid combination'};
+    return {state:'bad', msg:'Not a valid combination'};
   return {state:'ok', tag:tagOf(c)};
 }
 
-/* ----------------------------------------------------------- dead triggers
-   The mod walks the keys in PATTERNS order and takes the first one that has a
-   sprite, so a trigger is only reached where nothing above it matched. In
-   DeUlo's list every shape outranks the shapes it extends, so no single trigger
-   can hide another - deadness always comes from a SET. winter_indoor and
-   winter_outdoor between them leave no winter context over, and a plain
-   `winter` card is then art that can never appear in game.
-
-   Context dimensions are treated as independent, which they are not - the beach
-   is always outdoor, day 8 is always the same weekday. That only ever invents
-   contexts the game cannot produce, and a cover holding over the larger set
-   holds over the real one, so this can miss a dead trigger but not invent one. */
-
-// How many values each dimension can take. cutscene gets one more than the list
-// because "no cutscene" is the usual case and is a context like any other.
 const DIMS = {season:SEASONS.length, weather:WEATHER.length, day:DAYS.length,
   daynumber:28, location:LOCATIONS.length, inout:2, cutscene:CUTSCENES.length+1};
 
-// A card as the context values it demands; anything unlisted it does not care
-// about. Same fields as the tag, which is why kind doubles as the dimension.
 function regionOf(c){
   const r = {};
   if (c.isDefault) return r;
@@ -483,25 +382,20 @@ function regionOf(c){
   return r;
 }
 
-// Stands in for every value nobody named. Spaces and brackets are not legal in
-// any tag, so it can never collide with a real one.
 const OTHER = '(any other)';
 
-// Is every context inside `target` claimed by one of `regions`?
 function covered(target, regions){
   const free = {};
   for (const r of regions) for (const d in r)
     if (!(d in target)) (free[d] = free[d] || new Set()).add(r[d]);
   const dims = Object.keys(free);
-  // One stand-in for every value nobody named. A rival has to name a value to
-  // match it, so an unnamed value is a context still going spare - which is why
-  // naming three of eighty locations covers nothing.
+
   const doms = dims.map(d => {
     const vals = [...free[d]];
     return vals.length < DIMS[d] ? vals.concat([OTHER]) : vals;
   });
   const total = doms.reduce((n, d) => n * d.length, 1);
-  if (total > 20000) return false;   // absurd board; say nothing rather than hang
+  if (total > 20000) return false;
   for (let n = 0; n < total; n++){
     const ctx = Object.assign({}, target);
     let k = n;
@@ -514,39 +408,149 @@ function covered(target, regions){
   return true;
 }
 
-// card -> {slot, by} for every card the rest of the build leaves nothing to do.
 function shadowed(){
-  const cards = everyCard()
-    .filter(x => statusOf(x.card).state === 'ok')
-    .map(x => Object.assign({rank: PATTERNS.indexOf(shapeOf(x.card)),
-                             region: regionOf(x.card)}, x));
+  const trigs = everyTrigger()
+    .filter(x => statusOf(x.trig).state === 'ok')
+    .map(x => Object.assign({rank: PATTERNS.indexOf(shapeOf(x.trig)),
+                             region: regionOf(x.trig)}, x));
   const out = new Map();
-  for (const b of cards){
-    // Only cards that outrank this one, and only where they agree with it: a
-    // rival naming a different season is looking at another day entirely.
-    let rivals = cards.filter(a => a.rank < b.rank && Object.keys(b.region)
+  for (const b of trigs){
+    let rivals = trigs.filter(a => a.rank < b.rank && Object.keys(b.region)
       .every(d => !(d in a.region) || a.region[d] === b.region[d]));
     if (!rivals.length || !covered(b.region, rivals.map(r => r.region))) continue;
-    // Name the tags that actually did it, not everything ranked above it.
+
     for (const r of rivals.slice()){
       const less = rivals.filter(x => x !== r);
       if (less.length && covered(b.region, less.map(x => x.region))) rivals = less;
     }
-    out.set(b.card, {slot: b.slot, by: rivals.map(r => tagOf(r.card))});
+    out.set(b.trig, {slot: b.slot, by: rivals.map(r => tagOf(r.trig))});
   }
   return out;
 }
 
-// Recomputed once per paint rather than per card: cheap, but it reads the whole
-// board, and both the grid and the editor cards need the same answer.
 let dead = new Map();
 
-/* ------------------------------------------------------------------- dom */
+const overlaps = (a, b) =>
+  Object.keys(a).every(d => !(d in b) || a[d] === b[d]);
+
+const WHEN = {
+  season:    v => 'in ' + v,
+  weather:   v => ({sunny:'when sunny', rain:'when raining',
+                    thunder:'in a thunderstorm',
+                    special:'in special weather'}[v] || 'when ' + v),
+  day:       v => 'on ' + v + 's',
+  daynumber: v => 'on day ' + v,
+  location:  v => 'at the ' + v.replace(/_/g, ' '),
+  inout:     v => v === 'indoor' ? 'indoors' : 'outdoors',
+  cutscene:  v => 'during ' + v.replace(/_/g, ' '),
+};
+const WHEN_ORDER = ['season','weather','day','daynumber','location','inout',
+  'cutscene'];
+function whenPhrase(rival, mine){
+  const parts = WHEN_ORDER.filter(d => d in rival && !(d in mine))
+    .map(d => WHEN[d](rival[d]));
+
+  return parts.length ? parts.join(', ') : 'always';
+}
+
+const KIND_LABEL = {day:'a weekday', daynumber:'a day', location:'a location',
+  inout:'indoor/outdoor', cutscene:'a cutscene'};
+
+function coverFor(mine, rival){
+  if (mine.isDefault)
+    return {ok:false, why:'default is the fallback'};
+  if (mine.kind && rival.kind && mine.kind !== rival.kind)
+    return {ok:false, why:`No tag joins ${KIND_LABEL[mine.kind]} to `
+      + `${KIND_LABEL[rival.kind]}`};
+  const t = Object.assign(blankTrig(), {
+    season:  mine.season  || rival.season,
+    weather: mine.weather || rival.weather,
+    kind:    mine.kind    || rival.kind,
+
+    value:   mine.kind ? mine.value : rival.value,
+  });
+  const shape = shapeOf(t);
+  if (!PATTERNS.includes(shape))
+    return {ok:false, why:'no tag covers that combination'};
+
+  if (PATTERNS.indexOf(shape) >= PATTERNS.indexOf(shapeOf(rival)))
+    return {ok:false, why:'Already more specific, nothing fits between'};
+  const tag = tagOf(t);
+  if (everyTrigger().some(x => statusOf(x.trig).state === 'ok'
+                            && tagOf(x.trig) === tag))
+    return {ok:false, why:`${tag} already exists`};
+  return {ok:true, tag, trig:t};
+}
+
+function conflicts(){
+  const all = everyTrigger()
+    .filter(x => statusOf(x.trig).state === 'ok')
+    .map(x => Object.assign({rank: PATTERNS.indexOf(shapeOf(x.trig)),
+                             region: regionOf(x.trig)}, x));
+  const siblings = new Map();
+  for (const x of all){
+    if (!siblings.has(x.card)) siblings.set(x.card, []);
+    siblings.get(x.card).push(x);
+  }
+  const out = new Map();
+  for (const b of all){
+    if (b.trig.isDefault) continue;
+    const takers = [];
+    for (const a of all){
+      if (a.card === b.card || a.rank >= b.rank) continue;
+      if (!overlaps(a.region, b.region)) continue;
+
+      const zone = Object.assign({}, b.region, a.region);
+      const own = siblings.get(b.card)
+        .filter(o => o.rank < a.rank && overlaps(o.region, zone))
+        .map(o => o.region);
+      if (own.length && covered(zone, own)) continue;
+      takers.push({tag: tagOf(a.trig), slot: a.slot, rank: a.rank, trig: a.trig,
+                   when: whenPhrase(a.region, b.region),
+                   fix: coverFor(b.trig, a.trig)});
+    }
+    if (takers.length)
+      out.set(b.trig, takers.sort((x, y) => x.rank - y.rank));
+  }
+  return out;
+}
+
+function conflictsFor(card, conf = conflicts()){
+  const rows = [], seen = new Map();
+  for (const t of card.trigs){
+    if (statusOf(t).state !== 'ok') continue;
+    for (const k of conf.get(t) || []){
+      let row = seen.get(k.trig);
+      if (!row){
+        row = {tag: k.tag, slot: k.slot, rank: k.rank, trig: k.trig, takes: []};
+        seen.set(k.trig, row);
+        rows.push(row);
+      }
+      row.takes.push({from: tagOf(t), when: k.when, fix: k.fix});
+    }
+  }
+
+  return rows.sort((a, b) => a.rank - b.rank || a.tag.localeCompare(b.tag));
+}
+
+let conf = new Map();
+
+function verdictOf(trig){
+  const st = statusOf(trig);
+  if (st.state !== 'ok') return st.state;
+  if (dead.has(trig)) return 'never';
+  return conf.has(trig) ? 'narrowed' : 'clean';
+}
+
+const VERDICT_ICON = {clean:'', narrowed:'', never:'close bad',
+                      bad:'close bad', empty:''};
+const VERDICT_TEXT = {clean:'', narrowed:'', never:'nes-text is-error',
+                      bad:'nes-text is-error', empty:'nes-text is-disabled'};
+const mark = v => VERDICT_ICON[v]
+  ? `<i class="nes-icon ${VERDICT_ICON[v]} is-small"></i> ` : '';
 
 const $ = id => document.getElementById(id);
-// Everything else written into a status line comes from a fixed vocabulary, but
-// filenames come from the user's disk and are reported verbatim, so they get
-// escaped: a PNG named after an <img onerror=...> would otherwise run it.
+
 const esc = s => String(s).replace(/[&<>]/g, c =>
   ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
 function el(tag, cls, html){
@@ -564,14 +568,13 @@ function fill(select, opts, blankLabel){
   }
 }
 
-/* -------------------------------------------------------------- the grid */
-
 const grid = $('grid');
 const cells = [];
 for (let i = 0; i < SLOTS; i++){
-  const cell = el('div', 'cell',
-    `<div class="tile"><span class="num">${i+1}</span>`
-    + `<span class="empty">empty</span></div><div class="cap"></div>`);
+  const cell = el('div', 'cell nes-container with-title',
+    `<p class="title">${i+1}</p><div class="cellbody">`
+    + `<div class="tile"><span class="empty">Empty</span></div>`
+    + `<div class="cap"></div></div>`);
   cell.onclick = () => select(i);
   grid.append(cell);
   cells.push(cell);
@@ -583,127 +586,269 @@ function select(i){
   render();
 }
 
-/* ------------------------------------------------------- the editor cards
-   Rebuilt only when the selection or the card count changes. Editing a
-   dropdown updates state and re-renders the grid, but leaves these elements
-   alone, so nothing steals focus mid-edit. */
-
 function buildCards(){
   const host = $('cards');
   dead = shadowed();
+  conf = conflicts();
   host.innerHTML = '';
   $('slotHead').textContent = `Slot ${current+1}`;
   slots[current].cards.forEach((card, idx) => host.append(makeCard(card, idx)));
 }
 
-function makeCard(card, idx){
-  const box = el('div', 'panel card');
-  const detail = el('div', 'detail');
-  const preview = el('div', 'preview');
+function makeTrig(card, trig){
   const fields = el('div', 'fields');
-
-  // Only offer removal while a spare exists; a slot with no portrait at all
-  // would export a tag pointing at nothing.
-  if (slots[current].cards.length > 1){
-    const del = el('button', 'del', '&times;');
-    del.title = 'Remove this portrait';
-    del.onclick = e => { e.stopPropagation(); removeCard(idx); };
-    box.append(del);
-  }
 
   const chk = el('label', 'chk');
   const isDefault = document.createElement('input');
   isDefault.type = 'checkbox';
+  isDefault.className = 'nes-checkbox';
   chk.title = 'Shown whenever nothing more specific matches. One per build.';
-  chk.append(isDefault, el('span', '', 'Use as default'));
+  chk.append(isDefault, el('span', '', 'Use as Default'));
   fields.append(chk);
 
   const mk = (labelText, opts, blankLabel) => {
-    const row = el('div', 'field');
+    const r = el('div', 'nes-field');
     const lab = el('label', '', labelText);
     const sel = document.createElement('select');
     fill(sel, opts, blankLabel);
-    row.append(lab, sel);
-    fields.append(row);
+
+    const box = el('div', 'nes-select');
+    box.append(sel);
+    r.append(lab, box);
+    fields.append(r);
     return sel;
   };
-  // Two columns, reading across: season then weather, then the extra condition
-  // and its value under them.
+
   const fSeason  = mk('Season', SEASONS, 'any season');
   const fWeather = mk('Weather', WEATHER, 'any weather');
-  const fKind    = mk('Then one of', KINDS, null);
+  const fKind    = mk('Then One Of', KINDS, null);
   const fValue   = mk('Value', [], 'select...');
 
-  const tagline  = el('div', 'tagline');
-  const filename = el('div', 'filename');
-  const meta     = el('div', 'meta');
-  meta.append(tagline, filename);
-
-  detail.append(preview, fields, meta);
-  box.append(detail);
+  const note = el('div');
+  fields.append(note);
 
   function readBack(){
-    card.isDefault = isDefault.checked;
-    card.season  = fSeason.value;
-    card.weather = fWeather.value;
-    card.kind    = fKind.value;
-    card.value   = fValue.value;
-    // The mod matches exactly one default across the whole build, so ticking
-    // this box has to clear it everywhere else, not just in this slot.
-    if (card.isDefault){
-      card.season = card.weather = card.kind = card.value = '';
-      everyCard().forEach(x => { if (x.card !== card) x.card.isDefault = false; });
+    trig.isDefault = isDefault.checked;
+    trig.season  = fSeason.value;
+    trig.weather = fWeather.value;
+    trig.kind    = fKind.value;
+    trig.value   = fValue.value;
+
+    if (trig.isDefault){
+      trig.season = trig.weather = trig.kind = trig.value = '';
+      everyTrigger().forEach(x => {
+        if (x.trig !== trig) x.trig.isDefault = false; });
     }
   }
   function paint(){
-    isDefault.checked = card.isDefault;
-    fSeason.value  = card.season;
-    fWeather.value = card.weather;
-    // Both dropdowns are rebuilt here rather than once at creation, because the
-    // spoiler toggle changes what they may offer. A kind or value the card is
-    // already using is kept whatever the toggle says.
-    // Cutscene stays on the list even with spoilers off - the word is not the
-    // spoiler, the names are, and hiding the whole condition reads as the tool
-    // being broken rather than as a choice the user can make.
-    fill(fKind, KINDS, null);
-    fKind.value    = card.kind;
-    const opts = valuesFor(card.kind, card.value);
-    fill(fValue, opts || [], hintFor(card.kind, opts));
-    fValue.value = opts ? card.value : '';
-    fSeason.disabled = fWeather.disabled = fKind.disabled = card.isDefault;
-    fValue.disabled = card.isDefault || !opts;
+    isDefault.checked = trig.isDefault;
+    fSeason.value  = trig.season;
+    fWeather.value = trig.weather;
 
-    preview.className = 'preview' + (card.url ? ' filled' : '');
-    preview.innerHTML = card.url ? `<img src="${card.url}" alt="">`
-      : '<div class="arrow">&#11014;</div><div class="lbl">UPLOAD</div>';
-    filename.textContent = card.name;
-    const st = statusOf(card);
-    const d = dead.get(card);
-    tagline.innerHTML = st.state !== 'ok'
-      ? `<span class="bad">⚠ ${st.msg}</span>`
-      : `<code${d ? ' class="dead"' : ''}>${st.tag}</code>`
-        + (d ? `<span class="warn">⚠ never appears: ${d.by.join(', ')} `
-             + `${d.by.length > 1 ? 'cover' : 'covers'} every context it would</span>` : '');
+    fill(fKind, KINDS, null);
+    fKind.value    = trig.kind;
+    const opts = valuesFor(trig.kind, trig.value);
+    fill(fValue, opts || [], hintFor(trig.kind, opts));
+    fValue.value = opts ? trig.value : '';
+    fSeason.disabled = fWeather.disabled = fKind.disabled = trig.isDefault;
+    fValue.disabled = trig.isDefault || !opts;
+
+    const st = statusOf(trig);
+    note.className = 'trigNote' + (st.state === 'ok' ? '' : ' nes-text is-error');
+    note.innerHTML = st.state === 'ok' ? '' : esc(st.msg);
   }
 
   [isDefault, fSeason, fWeather, fKind, fValue].forEach(c => {
     c.onchange = () => { readBack(); repaintCards(); render(); };
   });
+
+  return {node: fields, paint,
+          els: {isDefault, fSeason, fWeather, fKind, fValue, note}};
+}
+
+function makeCard(card, idx){
+  const box = el('div', 'card nes-container with-title');
+  box.append(el('p', 'title', `Portrait ${idx+1}`));
+  const detail = el('div', 'detail');
+
+  const art     = el('div', 'art nes-container with-title');
+  const preview = el('div', 'preview nes-container');
+  const filename = el('div', 'filename');
+  const tagcol  = el('div', 'tagcol nes-container with-title');
+  const ctlcol  = el('div', 'ctlcol nes-container with-title');
+  const panel   = el('div', 'tree nes-container with-title');
+  art.append(el('p', 'title', 'Picture'), preview, filename);
+  detail.append(art, tagcol, ctlcol, panel);
+
+  if (card._sel === undefined || card._sel >= card.trigs.length) card._sel = 0;
+  const trig = card.trigs[card._sel];
+
+  tagcol.append(el('p', 'title', 'Tags'));
+  const taglist = el('table', 'taglist nes-table');
+  const tbody = document.createElement('tbody');
+  taglist.append(tbody);
+
+  const tagPicks = [], tagXs = [], tagRows = [], arrows = [];
+  card.trigs.forEach((t, ti) => {
+    const row = el('tr', 'tagrow');
+    tagRows.push(row);
+
+    const ar = el('td', 'arrow');
+    arrows.push(ar);
+    const b = el('button', 'tagpick');
+    b.onclick = () => { card._sel = ti; buildCards(); render(); };
+    const tg = el('td', 'tg');
+    tg.append(b);
+    row.append(ar, tg);
+    tagPicks.push(b);
+    if (card.trigs.length > 1){
+      const x = el('button', 'tagx nes-btn is-error',
+                   '<i class="nes-icon close is-small"></i>');
+      x.title = 'Remove this tag. The picture and its other tags stay.';
+      x.onclick = () => {
+        card.trigs.splice(ti, 1);
+        if (card._sel >= card.trigs.length) card._sel = card.trigs.length - 1;
+        buildCards(); render();
+      };
+      const xd = el('td', 'tx');
+      xd.append(x);
+      row.append(xd);
+      tagXs.push(x);
+    } else tagXs.push(null);
+    tbody.append(row);
+  });
+  tagcol.append(taglist);
+
+  const addTag = el('button', 'addTag nes-btn', '+ Add a Tag');
+  addTag.title = 'Another tag for this same picture. Use it when a '
+    + 'higher-priority tag is taking contexts away from this one.';
+  addTag.onclick = () => {
+    card.trigs.push(blankTrig());
+    card._sel = card.trigs.length - 1;
+    buildCards(); render();
+  };
+  tagcol.append(addTag);
+
+  ctlcol.append(el('p', 'title', 'This Tag'));
+  const row = makeTrig(card, trig);
+  ctlcol.append(row.node);
+
+  let delCard = null;
+  if (slots[current].cards.length > 1){
+    delCard = el('button', 'delCard nes-btn is-error', 'Remove Portrait');
+    delCard.title = 'Removes this portrait and every tag on it';
+    delCard.onclick = e => { e.stopPropagation(); removeCard(idx); };
+    art.append(delCard);
+  }
+  box.append(detail);
+
+  function applyCover(fix){
+    card.trigs.push(fix.trig);
+    card._sel = card.trigs.length - 1;
+    buildCards();
+    render();
+  }
+
+  function paintPanel(){
+    panel.innerHTML = '';
+    panel.append(el('p', 'title', 'Conflicts'));
+    if (!card.trigs.some(t => statusOf(t).state === 'ok')){
+      panel.append(el('div', 'treeNote nes-text is-disabled',
+                      'Finish the tag first.'));
+      return;
+    }
+
+    const rows = conflictsFor(card, conf);
+    const gone = card.trigs.filter(t => dead.has(t));
+    const onlyDefault = card.trigs.every(t => t.isDefault || statusOf(t).state !== 'ok');
+    const sum = el('div', 'treeSum' + (gone.length ? ' nes-text is-error' : ''));
+    if (onlyDefault && !gone.length){
+      sum.innerHTML = mark('clean')
+        + 'Fallback. Shows when no other tag matches.';
+      panel.append(sum);
+      return;
+    }
+    if (gone.length)
+      sum.innerHTML = mark('never')
+        + `<code class="tag">${gone.map(tagOf).join('</code>, <code class="tag">')}`
+        + `</code> never shows. `
+        + `Other tags cover every context.`;
+    else if (rows.length)
+      sum.innerHTML = mark('narrowed') + `${rows.length} tag`
+        + `${rows.length > 1 ? 's win' : ' wins'} before this portrait.`;
+    else
+      sum.innerHTML = mark('clean') + 'No conflicts.';
+    panel.append(sum);
+
+    const ul = el('ul', 'ladder nes-list');
+    for (const r of rows){
+      const li = el('li', 'up');
+      const head = el('div', 'rung');
+      const takes = el('ul', 'takes nes-list');
+
+      head.append(el('code', 'tag', esc(r.tag)));
+      li.append(head);
+      for (const t of r.takes){
+        const line = el('li', 'take');
+
+        line.append(el('span', '',
+          `Wins ${esc(t.when)}. You lose <code class="tag">${esc(t.from)}</code>`));
+        if (t.fix.ok){
+          const b = el('button', 'cover nes-btn is-warning',
+                       '<span>+</span><span>' + esc(t.fix.tag) + '</span>');
+          b.title = `Add ${t.fix.tag} to this portrait. It outranks `
+            + `${r.tag}, so this art wins that context back.`;
+          b.onclick = () => applyCover(t.fix);
+          line.append(b);
+        } else {
+          line.append(el('span', 'no nes-text is-disabled', esc(t.fix.why)));
+        }
+        takes.append(line);
+      }
+      li.append(takes);
+      ul.append(li);
+    }
+    panel.append(ul);
+  }
+
+  function paint(){
+    preview.className = 'preview nes-container';
+    preview.innerHTML = card.url ? `<img src="${card.url}" alt="">`
+      : '<div class="arrow">&#11014;</div><div class="lbl">Upload</div>';
+    filename.className = 'filename nes-text is-disabled';
+    filename.textContent = card.name;
+    card.trigs.forEach((t, ti) => {
+      const v = verdictOf(t);
+      const b = tagPicks[ti];
+      const on = ti === card._sel;
+
+      b.className = `tagpick ${v}` + (on ? ' sel' : '');
+      arrows[ti].textContent = on ? '>' : '';
+      tagRows[ti].className = 'tagrow' + (on ? ' sel' : '');
+      const st = statusOf(t);
+      const label = st.state === 'ok' ? st.tag : st.msg;
+      b.title = label;
+      b.innerHTML = `<span class="txt${st.state === 'ok' ? ' tag' : ''}">`
+        + `${esc(label)}</span>`;
+    });
+    row.paint();
+    paintPanel();
+  }
+
   preview.onclick = () => { pickTarget = card; $('picker').click(); };
 
   card._paint = paint;
-  // Handles for test_tool.mjs, which drives these the way a user would. The
-  // controls live in this closure, so without them the card is untestable.
-  card._els = {isDefault, fSeason, fWeather, fKind, fValue,
-               preview, tagline, filename};
+
+  card._trigs = [row.els];
+  card._els = Object.assign({preview, filename, panel, addTag, delCard,
+                             tagPicks, tagXs, tagRows}, row.els);
   paint();
   return box;
 }
 
-// Ticking default in one card clears it in the others, so every visible card
-// has to be repainted, not just the one that changed.
 const repaintCards = () => {
   dead = shadowed();
+  conf = conflicts();
   slots[current].cards.forEach(c => c._paint && c._paint());
 };
 
@@ -719,24 +864,18 @@ function removeCard(idx){
   render();
 }
 
-// Purely a viewing aid: Picrew art faces right, the game shows it mirrored.
-// Nothing in the build path reads this.
 $('flip').onchange = () =>
   $('wrap').classList.toggle('flipped', $('flip').checked);
 
-// Names only, but they are the names of story beats, so this is off until asked
-// for and remembered once it is. Nothing downstream reads it: a trigger built
-// with the box ticked is an ordinary trigger.
 $('spoilers').onchange = () => {
   spoilers = $('spoilers').checked;
   repaintCards();
   render();
 };
 
-// Work persists across reloads, so there has to be a way back to empty.
 $('reset').onclick = () => {
   if (!confirm('Throw away every portrait and trigger, and start from empty?')) return;
-  try { localStorage.removeItem(STORE); } catch (err){ /* nothing to remove */ }
+  try { localStorage.removeItem(STORE); } catch (err){}
   slots.forEach(s => { s.cards = [blank()]; });
   current = 0;
   notice = '';
@@ -744,114 +883,101 @@ $('reset').onclick = () => {
   render();
 };
 
-/* ---------------------------------------------------------------- render */
-
 function render(){
-  // First, so that a browser refusing to store gets to say so on this pass
-  // rather than the next one.
   saveState();
-  // Every path here paints the cards first, but this is what the grid and the
-  // status lines read, and it is the last thing to run in all of them.
+
   dead = shadowed();
+  conf = conflicts();
   slots.forEach((s, i) => {
     const cell = cells[i];
-    cell.classList.toggle('sel', i === current);
+    cell.classList.toggle('is-dark', i === current);
     const shown = s.cards.find(c => c.url);
     const tile = cell.querySelector('.tile');
-    // A slot holding several portraits used to draw stacked sheets behind the
-    // front one. The tag list beside the tile says the same thing, so all that
-    // is left of it is the count badge.
+
     const art = shown ? `<img src="${shown.url}" alt="">`
-                      : '<span class="empty">empty</span>';
-    const body = `<span class="num">${i+1}</span>`
-      + (s.cards.length > 1
-          ? `<span class="count">${s.cards.length} items</span>` : '')
+                      : '<span class="empty nes-text is-disabled">Empty</span>';
+    const body = (s.cards.length > 1
+          ? `<span class="count nes-text is-primary">${s.cards.length}x</span>` : '')
       + art;
-    // Only touch the DOM when it actually changed; rewriting innerHTML on every
-    // dropdown change re-creates the <img> and makes the whole grid flicker.
+
     if (tile.innerHTML !== body) tile.innerHTML = body;
-    cell.querySelector('.cap').innerHTML = s.cards.map(c => {
-      const st = statusOf(c);
-      return st.state === 'ok'  ? `<b${dead.has(c) ? ' class="dead"' : ''}>${st.tag}</b>`
-           : st.state === 'bad' ? `<i>${st.msg}</i>`
-           :                      `<s>${st.msg}</s>`;
+
+    cell.querySelector('.cap').innerHTML = s.cards.flatMap(c => c.trigs).map(t => {
+      const st = statusOf(t), v = verdictOf(t);
+      const body = st.state === 'ok'
+        ? `<span class="tag">${st.tag}</span>` : st.msg;
+      return `<b class="${v} ${VERDICT_TEXT[v]}">`
+        + `${mark(v)}${body}</b>`;
     }).join('');
   });
 
-  const problems = validate();
-  // Three tiers, and only the middle one blocks. A rejected stray file or a
-  // warning about preset numbering is not a reason to keep the button dead once
-  // every portrait is valid.
+  const problems = validate(dead);
+
+  const warn = m => `<div class="line warn">${mark('narrowed')}${m}</div>`;
   const lines = [
-    ...[notice, saveNote].filter(Boolean).map(m => `<div class="line warn">⚠ ${m}</div>`),
-    ...problems.map(m => `<div class="line bad">⚠ ${m}</div>`),
-    ...advisories(dead).map(m => `<div class="line warn">⚠ ${m}</div>`),
+    ...[notice, saveNote].filter(Boolean).map(warn),
+    ...problems.map(m => `<div class="line bad nes-text is-error">`
+      + `${mark('never')}${m}</div>`),
+    ...advisories(dead).map(warn),
   ];
-  if (!problems.length)
-    lines.push(`<div class="line ok">✓ ${everyCard().length} portraits ready</div>`);
+  if (!problems.length){
+    const p = everyCard().length, t = everyTrigger().length;
+    lines.push(`<div class="line ok">${mark('clean')}${p} portraits ready`
+      + (t !== p ? `, ${t} tags` : '') + `</div>`);
+  }
   $('status').innerHTML = lines.join('');
-  $('export').disabled = problems.length > 0;
+
+  const blocked = problems.length > 0;
+  $('export').disabled = blocked;
+  $('export').classList.toggle('is-disabled', blocked);
+  $('export').classList.toggle('is-success', !blocked);
 }
 
-// Highest slot number in use, 1-based - the number of outfit presets the player
-// has to have built in game for the whole mapping to reach.
 function presetsNeeded(){
-  const used = everyCard().filter(x => statusOf(x.card).state === 'ok').map(x => x.slot);
+  const used = everyTrigger()
+    .filter(x => statusOf(x.trig).state === 'ok').map(x => x.slot);
   return used.length ? Math.max(...used) + 1 : 1;
 }
 
-// Real mistakes that still export cleanly, so they warn rather than block. The
-// gap case is the one that bites: a fresh farmer has ONE preset and they are
-// created in order, so mapping slot 6 while slot 3 is empty still means building
-// a throwaway preset 3 in game before preset 6 exists at all.
-// The dead-trigger map is passed in so render() computes it once, but it
-// defaults to a fresh one: this has to be answerable from the board alone.
 function advisories(d = shadowed()){
   const out = [];
-  const used = new Set(everyCard()
-    .filter(x => statusOf(x.card).state === 'ok').map(x => x.slot));
-  // Nothing valid yet means nothing to advise about; presetsNeeded() floors at
-  // 1, so without this an empty board says slot 1 is both unused and needed.
+  const used = new Set(everyTrigger()
+    .filter(x => statusOf(x.trig).state === 'ok').map(x => x.slot));
+
   if (!used.size) return out;
   const need = presetsNeeded();
   const gaps = [];
   for (let i = 0; i < need; i++) if (!used.has(i)) gaps.push(i + 1);
-  if (gaps.length) out.push(`slot ${gaps.join(', ')} unused, but slot ${need} is. `
+  if (gaps.length) out.push(`Slot ${gaps.join(', ')} unused, but slot ${need} is. `
     + `You still have to build ${need} outfit presets in game`);
-  // Warns rather than blocks: the export is correct, it just carries a portrait
-  // the game will never reach, and half-built boards hit this on the way past.
-  for (const [card, x] of d)
-    out.push(`slot ${x.slot+1} "${tagOf(card)}" never appears: ${x.by.join(', ')} `
-      + `${x.by.length > 1 ? 'cover' : 'covers'} every context it would`);
   return out;
 }
 
-function validate(){
+function validate(d = shadowed()){
   const out = [];
-  const all = everyCard();
-  const noImage = all.filter(x => !x.card.url).length;
+
+  const cards = everyCard(), all = everyTrigger();
+  const noImage = cards.filter(x => !x.card.url).length;
   if (noImage) out.push(`${noImage} portrait(s) need an image`);
-  // Restored images decode asynchronously; exporting before that lands would
-  // write empty sprites, so the button stays dead for the frame or two it takes.
-  const loading = all.filter(x => x.card.url && !x.card.img).length;
+
+  const loading = cards.filter(x => x.card.url && !x.card.img).length;
   if (loading) out.push(`${loading} portrait(s) still loading`);
-  const bad = all.filter(x => statusOf(x.card).state !== 'ok').length;
-  if (bad) out.push(`${bad} portrait(s) need a valid trigger`);
-  const defs = all.filter(x => x.card.isDefault).length;
+  const bad = all.filter(x => statusOf(x.trig).state !== 'ok').length;
+  if (bad) out.push(`${bad} tag(s) unfinished`);
+  const defs = all.filter(x => x.trig.isDefault).length;
   if (defs !== 1) out.push(defs === 0
-    ? 'no portrait set as default (one is required)'
-    : `${defs} portraits set as default (only one allowed)`);
-  // Two cards with the same tag would write the same sprite file twice, and the
-  // second slot number would silently win.
-  const tags = all.filter(x => statusOf(x.card).state === 'ok').map(x => tagOf(x.card));
+    ? 'No default tag (one is required)'
+    : `${defs} default tags (only one allowed)`);
+
+  const tags = all.filter(x => statusOf(x.trig).state === 'ok').map(x => tagOf(x.trig));
   const dupes = [...new Set(tags.filter((t,i) => tags.indexOf(t) !== i))];
-  if (dupes.length) out.push('duplicate tags: ' + dupes.join(', '));
+  if (dupes.length) out.push('Duplicate tags: ' + dupes.join(', '));
+  for (const [trig, x] of d)
+    out.push(`"${tagOf(trig)}" (slot ${x.slot+1}) never shows. `
+      + `${x.by.join(', ')} ${x.by.length > 1 ? 'cover' : 'covers'} it`);
   return out;
 }
 
-/* ------------------------------------------------------------------ files */
-
-// Decode card.url (always a small PNG data URL) into the Image the export uses.
 function attach(card){
   const im = new Image();
   im.onload = () => { card.img = im; repaintCards(); render(); };
@@ -862,10 +988,6 @@ function attach(card){
   im.src = card.url;
 }
 
-// Downsample on arrival rather than at export. The card then holds native
-// pixels only, which is what makes the state small enough to save - and it
-// means a too-tall image is reported the moment it is dropped instead of
-// fifteen minutes later when the export fails.
 function loadInto(card, file){
   const src = URL.createObjectURL(file);
   const im = new Image();
@@ -878,7 +1000,7 @@ function loadInto(card, file){
     card.url = nat.canvas.toDataURL('image/png');
     attach(card);
   };
-  // Extension alone is a weak check; a renamed file fails to decode here.
+
   im.onerror = () => {
     URL.revokeObjectURL(src);
     notice = `${esc(file.name)} is not a readable PNG`;
@@ -887,8 +1009,6 @@ function loadInto(card, file){
   im.src = src;
 }
 
-// Dropping several files on one slot fills it and then adds cards for the rest,
-// which is the quick path to "one outfit, four weathers".
 function acceptInto(slot, files){
   const s = slots[slot];
   files.forEach((f, n) => {
@@ -903,7 +1023,7 @@ function acceptFiles(files, slot){
   notice = rejected ? `${rejected} file(s) ignored, PNG only` : '';
   if (!list.length){ render(); return; }
   if (slot !== undefined){ acceptInto(slot, list); return; }
-  // A drop on the panel background spreads across slots that are still empty.
+
   let n = 0;
   for (let i = 0; i < SLOTS && n < list.length; i++)
     if (!slots[i].cards[0].url) loadInto(slots[i].cards[0], list[n++]);
@@ -936,11 +1056,6 @@ grid.addEventListener('drop', e => {
   e.preventDefault(); acceptFiles(e.dataTransfer.files); render();
 });
 
-/* -------------------------------------------------------- image pipeline
-   Ported from build_portrait.py. Every step is an exact pixel operation:
-   detect the nearest-neighbour upscale factor, take one pixel per block,
-   mirror, and pad. No resampling anywhere, so the result is pixel-perfect. */
-
 function imageDataOf(img){
   const c = document.createElement('canvas');
   c.width = img.naturalWidth || img.width;
@@ -968,10 +1083,6 @@ function nativeScale(d){
   return best;
 }
 
-// Step one, run once when a file lands: detect the upscale factor and take one
-// pixel per block. Deliberately separate from the mirror-and-pad below, because
-// detection must never run twice - a stored native image handed back to
-// nativeScale() could in principle be read as an upscale of something smaller.
 function toNative(img){
   const d = imageDataOf(img);
   const n = nativeScale(d);
@@ -995,10 +1106,6 @@ function toNative(img){
   return {canvas:c, data:out, w:nw, h:nh, scale:n};
 }
 
-// Step two, run at export: mirror and pad native pixels to the sprite the mod
-// wants. Padding goes on TOP - the sprite origin is top-left and the character
-// sits flush to the bottom of the Picrew frame, so anchoring the bottom is what
-// keeps portraits from jumping.
 function finish(d){
   const nw = d.width, nh = d.height;
   if (nh > TARGET_H)
@@ -1011,7 +1118,7 @@ function finish(d){
   const pad = TARGET_H - nh;
   for (let y = 0; y < nh; y++){
     for (let x = 0; x < nw; x++){
-      const si = (y*nw + (nw-1-x)) * 4;                // mirrored source pixel
+      const si = (y*nw + (nw-1-x)) * 4;
       const di = ((y+pad)*nw + x) * 4;
       out.data[di]   = d.data[si];
       out.data[di+1] = d.data[si+1];
@@ -1024,9 +1131,6 @@ function finish(d){
   return {canvas:c, w:nw, h:TARGET_H, opaque};
 }
 
-// The two halves back to back, which is the path a raw Picrew export takes.
-// Production never calls this - it downsamples on upload and finishes on export
-// - but it is the thing worth testing end to end.
 function processImage(img){
   const n = toNative(img);
   return Object.assign(finish(n.data), {scale:n.scale});
@@ -1040,11 +1144,6 @@ frame_size = [${w}, ${h}]
 frame_len = 1
 atlas = "Npc"
 `;
-
-/* ------------------------------------------------------------------- zip
-   Stored (uncompressed) entries only. A stored zip is just per-file headers
-   plus the raw bytes, so this is shorter than pulling in a zip library and
-   keeps the tool a single file. PNGs are already compressed anyway. */
 
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256);
@@ -1069,10 +1168,10 @@ function makeZip(files){
     const lh = new Uint8Array(30 + name.length);
     const v = new DataView(lh.buffer);
     v.setUint32(0, 0x04034b50, true);
-    v.setUint16(4, 20, true);                 // version needed
-    v.setUint16(8, 0, true);                  // method 0 = stored
-    v.setUint16(10, 0, true);                 // time
-    v.setUint16(12, 0x21, true);              // date = 1980-01-01
+    v.setUint16(4, 20, true);
+    v.setUint16(8, 0, true);
+    v.setUint16(10, 0, true);
+    v.setUint16(12, 0x21, true);
     v.setUint32(14, crc, true);
     v.setUint32(18, size, true);
     v.setUint32(22, size, true);
@@ -1083,9 +1182,9 @@ function makeZip(files){
     const ch = new Uint8Array(46 + name.length);
     const w = new DataView(ch.buffer);
     w.setUint32(0, 0x02014b50, true);
-    w.setUint16(4, 20, true);                 // version made by
-    w.setUint16(6, 20, true);                 // version needed
-    w.setUint16(10, 0, true);                 // method 0 = stored
+    w.setUint16(4, 20, true);
+    w.setUint16(6, 20, true);
+    w.setUint16(10, 0, true);
     w.setUint16(12, 0, true);
     w.setUint16(14, 0x21, true);
     w.setUint32(16, crc, true);
@@ -1108,8 +1207,6 @@ function makeZip(files){
   return new Blob([...parts, ...central, eocd], {type:'application/zip'});
 }
 
-/* ---------------------------------------------------------------- export */
-
 const canvasBytes = canvas => new Promise(res =>
   canvas.toBlob(b => b.arrayBuffer().then(a => res(new Uint8Array(a))), 'image/png'));
 
@@ -1117,31 +1214,26 @@ async function buildFiles(){
   const enc = new TextEncoder();
   const dir = `${MOD_DIR}/animations/FarmerPortraits/`;
   const files = [], outfits = {}, warnings = [];
-  for (const {card, slot} of everyCard()){
-    const tag = tagOf(card);
-    // card.img is already native - it was downsampled on upload - so only the
-    // mirror-and-pad half runs here.
+
+  for (const {card, trig, slot} of everyTrigger()){
+    const tag = tagOf(trig);
+
     const r = finish(imageDataOf(card.img));
     if (r.opaque) warnings.push(`${tag} has no transparency`);
     files.push({name: `${dir}spr_farmer_portrait_${tag}.png`,
                 data: await canvasBytes(r.canvas)});
     files.push({name: `${dir}spr_farmer_portrait_${tag}.meta.toml`,
                 data: enc.encode(TOML(r.w, r.h))});
-    // Many tags can share one slot; that is the point of multiple cards.
+
     outfits[tag] = slot;
   }
-  // The companion mod reads this. Slot indices are 0-based to match
-  // ARI.presets.get(n); the comment travels with the file so the GML side
-  // has one place to check if that ever turns out to be off by one.
+
   files.push({name: `${MOD_DIR}/outfit_slots.json`, data: enc.encode(JSON.stringify({
     _comment: '0-based preset index, as passed to obj_ari.change_preset(n)',
     slots: outfits,
   }, null, 2) + '\n')});
   files.push({name: `${MOD_DIR}/manifest.json`, data: enc.encode(MANIFEST)});
 
-  // The same table as GML, which is what the outfit mod actually reads. It ships
-  // with the sprites rather than with the outfit mod so that re-exporting art
-  // can never leave the two describing different things.
   files.push({name: `${MOD_DIR}/gml/FarmerPortraitsSlots.gml`,
               data: enc.encode(slotsGml(outfits))});
   return {files, warnings};
@@ -1150,7 +1242,7 @@ async function buildFiles(){
 $('export').onclick = async () => {
   if (validate().length) return;
   const st = $('status');
-  st.innerHTML = '<div class="line">building...</div>';
+  st.innerHTML = '<div class="line">Building...</div>';
   try {
     const {files, warnings} = await buildFiles();
     const a = document.createElement('a');
@@ -1158,7 +1250,8 @@ $('export').onclick = async () => {
     a.download = `${MOD_DIR}.zip`;
     a.click();
 
-    st.innerHTML = `<div class="line ok">✓ exported ${files.length} files</div>`;
+    st.innerHTML = `<div class="line ok">${mark('clean')}`
+      + `Exported ${files.length} files</div>`;
     const after = $('afterExport');
     after.style.display = '';
     after.innerHTML =
@@ -1176,20 +1269,12 @@ $('export').onclick = async () => {
             + `with transparency on.`
           : '');
   } catch (err){
-    st.innerHTML = `<div class="line bad">⚠ ${esc(err.message)}</div>`;
+    st.innerHTML = `<div class="line bad nes-text is-error">${mark('never')}`
+      + `${esc(err.message)}</div>`;
     throw err;
   }
 };
 
-/* ------------------------------------------------------ the slot table
-   Emitted as GML rather than read from JSON at runtime: no file reading, no
-   parsing, no path handling, and MOMI installs it like any other script. It
-   lands inside the SPRITE mod, not the outfit mod, because it describes this
-   export's artwork - shipping it with the sprites is what makes the two
-   impossible to get out of step.
-
-   FarmerPortraitsSync reads the global this sets. That mod ships fixed and is
-   installed once; only this file changes when portraits do. */
 function slotsGml(outfits){
   const rows = Object.entries(outfits)
     .map(([tag, slot]) => `    _m[$ "${tag}"] = ${slot};`).join('\n');

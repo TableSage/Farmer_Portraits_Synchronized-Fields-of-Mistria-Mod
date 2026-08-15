@@ -40,8 +40,8 @@ Everything lives in the game's own mods folder, the one MOMI reads:
 `Farmer Portraits` folder that is already there.
 
 **2. Build your portraits.** Open `portrait_tool.html`. Drag your PNGs onto the
-slots, give each one a trigger, tick **use as default** on exactly one, then
-**Finish and export**.
+slots, give each one a tag, tick **Use as Default** on exactly one, then
+**Finish and Export**.
 
 **3. Install them.** Unzip the download and put the folder inside into the same
 mods folder.
@@ -73,7 +73,12 @@ outfit should cover all of them:
               winter_thunder  /
 ```
 
-**A trigger is a season, a weather and one more condition:** location, weekday,
+**One portrait can answer to several tags.** The mod resolves a tag to a sprite
+file, so the same art in summer and at the beach really is two files — but you
+upload it once and add a second tag to the same picture, rather than keeping two
+copies of the same PNG in sync by hand.
+
+**A tag is a season, a weather and one more condition:** location, weekday,
 day of month, indoor or outdoor, or a cutscene. Only the combinations the mod
 actually looks up are offered, checked against the mod's own code rather than
 its readme, because a tag off that list fails silently in game.
@@ -83,9 +88,17 @@ secret locations, sit behind a checkbox. The names alone give away story beats,
 which is how DeUlo publishes them too.
 
 **Unreachable portraits are caught before export.** The mod takes the first
-matching trigger in its precedence order, so covering winter indoors and winter
+matching tag in its precedence order, so covering winter indoors and winter
 outdoors leaves a plain `winter` portrait with nothing to appear in. The tool
-works that out and says which tags buried it.
+works that out, says which tags buried it, and refuses to export until it is
+fixed.
+
+**Every portrait carries a Conflicts panel.** The quieter problem is a tag that
+still works but has quietly lost a slice: `summer` outranks `beach`, so a beach
+portrait is simply gone all summer with no error anywhere. The panel lists the
+tags that win before this one and what each costs, with a button that adds the
+one tag which wins those contexts back — and when no tag can (there is no
+`saturday_beach`), it says so instead of offering a button that would not work.
 
 **Export gives you one zip holding one correctly named mod folder.** The
 tag-to-slot table is generated inside that folder, so the clothes and the

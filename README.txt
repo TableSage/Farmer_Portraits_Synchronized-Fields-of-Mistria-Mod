@@ -11,6 +11,11 @@
     portrait_tool.html    The builder. Opens in any browser.
     FarmerPortraitsSync   The outfit mod. Install once.
 
+    The builder pulls its look (NES.css, Press Start 2P)
+    off the web the first time you open it. Offline it
+    still works, it just looks plain. Your portraits never
+    leave your machine either way.
+
 
   HOW IT MAPS
   -----------
@@ -27,6 +32,9 @@
         it's winter   /
 
     Three different pictures on screen, one set of clothes.
+
+    One portrait can also answer to more than one trigger.
+    Same picture, several tags, one upload - see step 2c.
 
 
   1. INSTALL THE OUTFIT MOD  (once, ever)
@@ -45,14 +53,26 @@
 
     a. Drag your PNGs onto the slots, or click a slot and use
        "Upload" in the panel below.
-    b. Give each one a trigger: season / weather / plus one
-       more condition. Tick "use as default" on exactly one.
-    c. "+ Add another portrait to this slot" puts more in the
-       same slot.
+    b. Give each one a tag: season / weather / plus one more
+       condition. Tick "Use as Default" on exactly one.
+
+       A tag that works carries no mark. A tag that can
+       never appear in game gets a red X, and that blocks
+       the export until you fix it. Anything in between -
+       a tag something else takes contexts from - is a
+       line in the Conflicts panel rather than a symbol.
+    c. "+ Add Another Portrait to This Slot" puts a different
+       picture in the same slot. "+ Add a Tag" gives the SAME
+       picture another tag - that is what you want when a
+       higher-priority tag is covering it up (see e. below).
     d. Cutscene names, and the late-game and secret places,
-       are hidden until you tick "include spoiler options".
+       are hidden until you tick "Include Spoiler Options".
        The dropdown says so when that is what emptied it.
-    e. Click "Finish and export".
+    e. "Conflicts", on the right of each portrait, lists only
+       the tags that win before it and what each one costs
+       you, with a button to add the tag that wins those
+       contexts back. Empty means nothing is wrong.
+    f. Click "Finish and Export".
 
 
   3. INSTALL YOUR PORTRAITS
@@ -92,6 +112,27 @@
       specific trigger always wins, so if you cover winter
       indoors and winter outdoors, a plain "winter" portrait
       has nothing left to appear in. Widen it or drop it.
+
+    A portrait shows up, but not when you expected
+      The mod picks the FIRST matching tag from a fixed
+      priority list, and season beats location - so a "summer"
+      portrait hides a "beach" one all summer long. The tag
+      is listed in the Conflicts panel, which says so and
+      offers to add "summer_beach" for you. That is one
+      extra tag, not a second copy of the art, and it only
+      takes one: spring, fall and winter at the beach were
+      never in dispute.
+
+      Some pairs cannot be resolved at all. A tag holds a
+      season, a weather and ONE more condition, so there is no
+      tag meaning "at the beach on a Saturday" - and weekday
+      outranks location. The Conflicts panel says so plainly
+      instead of offering a button that would not work.
+
+    The tool looks like a plain unstyled web page
+      It could not reach the web for NES.css. Everything
+      still works and exports correctly - connect and
+      reload if you want the pixel look back.
 
     Everything faces the wrong way
       Turn "Face right" OFF in the Farmer Portraits settings.
