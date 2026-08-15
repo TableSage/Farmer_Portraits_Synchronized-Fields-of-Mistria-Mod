@@ -11,6 +11,9 @@ with whichever portrait is on screen.
 > **Alpha.** Verified in game on Windows, by one person, on one install. Back up
 > your save and expect rough edges.
 
+**[Download the latest release](../../releases/latest)** — one zip, no build step.
+Unzip it and read `README.txt`; it covers the install start to finish.
+
 ## What's in here
 
 | | |
