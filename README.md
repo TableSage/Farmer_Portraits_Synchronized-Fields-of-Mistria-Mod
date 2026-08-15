@@ -113,6 +113,13 @@ artwork install together and cannot fall out of step.
 
 ## Credits
 
+The builder wears [**NES.css**](https://nostalgic-css.github.io/NES.css/) by
+B.C.Rikko, an 8-bit style framework (MIT), set in
+[**Press Start 2P**](https://fonts.google.com/specimen/Press+Start+2P) by
+CodeMan38 (SIL Open Font License). Both load from a CDN rather than being
+bundled, so the tool stays one file; offline it still works and exports
+correctly, it just looks plain.
+
 **Farmer Portraits** is DeUlo's work and **MOMI** is the community mod
 installer. Neither is included here. Portrait art in the screenshots comes from
 [not_darkly's Picrew](https://picrew.me/en/image_maker/2750165/); whatever you
