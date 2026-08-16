@@ -15,8 +15,8 @@ with whichever portrait is on screen.
 > When it's raining, I want to wear my raincoat.  
 > During each season, I want to have a default outfit.
 
-Still alpha, tested in game by several people, all on Windows. Back up your save
-and expect rough edges.
+Still alpha, and only ever run on Windows. Back up your save and expect rough
+edges.
 
 **[Download the latest release](../../releases/latest)**: one zip, no build step.
 Unzip it and read `README.txt`; it covers the install start to finish.
