@@ -1,0 +1,19 @@
+{
+  "_": "Read by release.mjs. Nothing secret goes in here: the API key is the NEXUS_API_KEY environment variable.",
+
+  "game_domain": "fieldsofmistria",
+  "_mod_id": "The number in your own mod's URL, https://www.nexusmods.com/fieldsofmistria/mods/<this>. Fill it in once.",
+  "mod_id": null,
+
+  "zip_folder": "Farmer Portraits Synchronized",
+
+  "_file_name": "The name of the file on the Nexus page. Matched exactly to decide new-version vs new-file, so changing it creates a second download rather than updating the first. Max 50 chars, letters digits space _ ' ( ) . - only.",
+  "file_name": "Farmer Portraits Synchronized",
+  "file_category": "main",
+
+  "_update_mod_version": "Whether uploading also bumps the version shown at the top of the mod page.",
+  "update_mod_version": true,
+
+  "_archive_existing_file": "Whether the previous version moves to the archived files list instead of staying visible.",
+  "archive_existing_file": false
+}
