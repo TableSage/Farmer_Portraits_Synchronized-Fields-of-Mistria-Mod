@@ -33,7 +33,7 @@ Unzip it and read `README.txt`; it covers the install start to finish.
 
 - [MOMI](https://www.nexusmods.com/fieldsofmistria/mods/78), the mod installer
 - [Farmer Portraits](https://www.nexusmods.com/fieldsofmistria/mods/703) by DeUlo
-- Portraits as PNG with a transparent background — or none at all, if you only
+- Portraits as PNG with a transparent background, or none at all, if you only
   want the outfit switching. This was built around
   [this Picrew](https://picrew.me/en/image_maker/2750165/) by **not_darkly**,
   whose exports work as they come: the tool downsamples, mirrors and pads them
@@ -125,7 +125,7 @@ one tag which wins those contexts back. When no tag can (there is no
 on a slot and it needs no picture: the outfit still switches on its tags, and
 nothing is drawn in the dialogue box. Tick it on all eight and dialogue looks
 exactly like vanilla while your farmer keeps changing clothes with the season,
-the weather and where you are. DeUlo's mod is still required either way — the
+the weather and where you are. DeUlo's mod is still required either way. The
 outfit half borrows it to work out which trigger is winning.
 
 **Export gives you one zip holding one correctly named mod folder.** The
