@@ -30,8 +30,8 @@ const CONFIG = JSON.parse(read('release.config.json'));
 // list rather than a glob: NOTES.md and the PRD sit in this folder and must
 // never ship, and a glob with exclusions gets that wrong eventually.
 const PAYLOAD = [
-  'FarmerPortraitsSync/gml/FarmerPortraitsSync.gml',
-  'FarmerPortraitsSync/manifest.json',
+  'FarmerOutfitsPortraitsSync/gml/FarmerOutfitsPortraitsSync.gml',
+  'FarmerOutfitsPortraitsSync/manifest.json',
   'LICENSE',
   'portrait_tool.html',
   'README.txt',
@@ -60,8 +60,8 @@ function run(cmd, args, opts = {}){
 // days while releases went out as 1.1.x, and nothing noticed. test_tool.mjs
 // pins the first two against each other; this pins all three.
 function versions(){
-  const manifest = JSON.parse(read('FarmerPortraitsSync/manifest.json')).version;
-  const gml = (read('FarmerPortraitsSync/gml/FarmerPortraitsSync.gml')
+  const manifest = JSON.parse(read('FarmerOutfitsPortraitsSync/manifest.json')).version;
+  const gml = (read('FarmerOutfitsPortraitsSync/gml/FarmerOutfitsPortraitsSync.gml')
     .match(/mmapi_mod_declare\([^,]+,\s*"([^"]+)"/) || [])[1];
   return { manifest, gml };
 }
@@ -70,7 +70,7 @@ function agreedVersion(){
   const { manifest, gml } = versions();
   if (manifest !== gml)
     die(`version disagreement: manifest.json says ${manifest}, `
-      + `FarmerPortraitsSync.gml says ${gml}. Fix both, then re-run.`);
+      + `FarmerOutfitsPortraitsSync.gml says ${gml}. Fix both, then re-run.`);
   if (!manifest) die('no version found in manifest.json');
   if (!/^[a-zA-Z0-9.-]+$/.test(manifest))
     die(`Nexus will not accept the version "${manifest}": letters, digits, `
@@ -78,7 +78,7 @@ function agreedVersion(){
   return manifest;
 }
 
-const zipName = v => `Farmer_Portraits_Synchronized_v${v}.zip`;
+const zipName = v => `Farmer_Outfits_and_Portraits_Synchronized_v${v}.zip`;
 
 // ---------------------------------------------------------------- the zip
 
@@ -321,19 +321,45 @@ async function api(method, endpoint, { body, key } = {}){
   return text ? JSON.parse(text).data : null;
 }
 
-// The name on the page carries the version ("Farmer Portraits Synchronized
-// V1.1.2"), so an exact-match search for the previous file never matches and
-// every release quietly becomes a second download instead of a new version of
-// the first. Strip a trailing version before comparing.
+// The name on the page carries the version ("Farmer Outfits and Portraits -
+// Synchronized V1.1.2"), so an exact-match search for the previous file never
+// matches and every release quietly becomes a second download instead of a new
+// version of the first. Strip a trailing version before comparing.
 const uploadName = v => CONFIG.file_name_versioned
   ? `${CONFIG.file_name} V${v}` : CONFIG.file_name;
 
 const baseName = n => n.replace(/\s+[vV]?\d+(\.\d+)*\s*$/, '').trim();
 
+// A file ENTRY and its VERSIONS are two different things with two different
+// names, and only the version name is the one you can edit on the page.
+// `POST /mod-files/{id}/versions` names the version; the entry keeps whatever
+// it was called the day it was created, forever. Verified 2026-08-16: the entry
+// read "Farmer Portraits Synchronized V1.1.1" while its own primary version
+// read "Farmer Outfits and Portraits - Synchronized V1.1.2".
+//
+// So matching on the entry name alone breaks after any rename, and it breaks
+// the expensive way - no match means the code below creates a second download
+// instead of adding a version. One active file is unambiguous whatever it is
+// called, so prefer that over guessing; anything less clear-cut stops.
 function findFile(files){
   const want = baseName(CONFIG.file_name);
-  return files.find(f => f.name === CONFIG.file_name)
+  const byName = files.find(f => f.name === CONFIG.file_name)
       || files.find(f => baseName(f.name).toLowerCase() === want.toLowerCase());
+  if (byName) return byName;
+
+  const active = files.filter(f => f.is_active !== false);
+  if (active.length === 1){
+    say(`  note: nothing here is named "${CONFIG.file_name}". The mod has one`);
+    say(`        file, "${active[0].name}", so that is the one. A stale entry`);
+    say(`        name is normal after a rename and cannot be edited on the page.`);
+    return active[0];
+  }
+  if (active.length > 1)
+    die(`${active.length} files on the mod and none named "${CONFIG.file_name}":\n`
+      + active.map(f => `      "${f.name}"`).join('\n')
+      + '\n    Refusing to guess. Point file_name at one of these, because the'
+      + '\n    alternative is silently publishing a second download.');
+  return null;   // no files at all: a genuine first upload
 }
 
 function ask(question){
@@ -469,7 +495,7 @@ function status(){
   const { manifest, gml } = versions();
   say('');
   say(`  manifest.json          ${manifest}`);
-  say(`  FarmerPortraitsSync    ${gml}${manifest === gml ? '' : '   <- disagrees'}`);
+  say(`  outfit mod .gml        ${gml}${manifest === gml ? '' : '   <- disagrees'}`);
 
   const v = manifest;
   say(`  zip built              ${exists(zipName(v)) ? zipName(v) : 'no'}`);
