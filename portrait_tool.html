@@ -996,6 +996,10 @@ function loadInto(card, file){
     let nat;
     try { nat = toNative(im); }
     catch (err){ notice = `${esc(file.name)}: ${err.message}`; repaintCards(); render(); return; }
+    if (nat.fitted)
+      notice = `${esc(file.name)} was ${im.naturalWidth || im.width}x`
+        + `${im.naturalHeight || im.height}, resized to ${nat.w}x${nat.h} to fit `
+        + `the portrait frame`;
     card.name = file.name;
     card.url = nat.canvas.toDataURL('image/png');
     attach(card);
@@ -1083,12 +1087,35 @@ function nativeScale(d){
   return best;
 }
 
+function scaleTo(src, w, h){
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(src, 0, 0, w, h);
+  return c;
+}
+
+function fitToFrame(img, sw, sh){
+  const widthAt = h => Math.max(1, Math.round(sw * h / sh));
+  let src = img, h = sh;
+  while (h > TARGET_H * 2){
+    h = Math.round(h / 2);
+    src = scaleTo(src, widthAt(h), h);
+  }
+  const c = scaleTo(src, widthAt(TARGET_H), TARGET_H);
+  return {canvas:c, data:c.getContext('2d').getImageData(0, 0, c.width, c.height),
+          w:c.width, h:TARGET_H, scale:1, fitted:true};
+}
+
 function toNative(img){
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+  if (h > TARGET_H * 16) return fitToFrame(img, w, h);
   const d = imageDataOf(img);
   const n = nativeScale(d);
   const nw = d.width / n, nh = d.height / n;
-  if (nh > TARGET_H)
-    throw new Error(`${nh}px tall at native scale, taller than ${TARGET_H}`);
+  if (nh > TARGET_H) return fitToFrame(img, w, h);
   const c = document.createElement('canvas');
   c.width = nw; c.height = nh;
   const ctx = c.getContext('2d');
@@ -1265,8 +1292,8 @@ $('export').onclick = async () => {
       + `${presetsNeeded() === 1 ? '' : 's'}</b> to match the slots above. A new `
       + `farmer starts with one; add the rest in the customization menu.`
       + (warnings.length
-          ? `<br><br><b>Warning:</b> ${warnings.join('; ')}. Re-export from Picrew `
-            + `with transparency on.`
+          ? `<br><br><b>Warning:</b> ${warnings.join('; ')}. Save the PNG with a `
+            + `transparent background, or the portrait shows up as a rectangle.`
           : '');
   } catch (err){
     st.innerHTML = `<div class="line bad nes-text is-error">${mark('never')}`

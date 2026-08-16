@@ -53,6 +53,12 @@
 
     a. Drag your PNGs onto the slots, or click a slot and use
        "Upload" in the panel below.
+
+       Any size works. Picrew exports go in as they are;
+       anything bigger is scaled down to fit the portrait
+       frame, keeping its shape, and the tool says so. It
+       never crops, so trim big empty margins yourself or
+       your character renders small.
     b. Give each one a tag: season / weather / plus one more
        condition. Tick "Use as Default" on exactly one.
 
@@ -137,5 +143,13 @@
     Everything faces the wrong way
       Turn "Face right" OFF in the Farmer Portraits settings.
       The tool already mirrors for you.
+
+
+  CREDITS
+  -------
+    "Farmer Portraits" is DeUlo's mod and is not included
+    here, only built for. MOMI is the community installer.
+    The portrait art in the screenshots comes from
+    not_darkly's Picrew. Not affiliated with any of them.
 
 ==============================================================

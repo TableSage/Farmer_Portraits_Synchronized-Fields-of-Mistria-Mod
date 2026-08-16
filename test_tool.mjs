@@ -71,7 +71,23 @@ class El {
       // A canvas that has been drawn into reads back what was put there; a
       // fresh one reads the fixture. That is what lets toNative() and finish()
       // be driven back to back the way the page drives them.
-      drawImage(src){ if (src && src.__out) self.__out = src.__out; },
+      //
+      // A resize is done nearest-neighbour, which is not the filter a browser
+      // uses. It is enough to check the geometry of the fit path and that alpha
+      // survives it; the filter quality is a browser's problem, not ours.
+      drawImage(src, dx, dy, dw, dh){
+        const s = (src && src.__out) || srcData;
+        if (!s) return;
+        const w = dw || s.width, h = dh || s.height;
+        if (w === s.width && h === s.height){ self.__out = s; return; }
+        const out = {width:w, height:h, data:new Uint8ClampedArray(w*h*4)};
+        for (let y = 0; y < h; y++) for (let x = 0; x < w; x++)
+          out.data.set(
+            s.data.slice((((y*s.height/h)|0)*s.width + ((x*s.width/w)|0))*4 + 0,
+                         (((y*s.height/h)|0)*s.width + ((x*s.width/w)|0))*4 + 4),
+            (y*w + x)*4);
+        self.__out = out;
+      },
       getImageData(){ return self.__out || srcData; },
       createImageData(w,h){
         return {width:w, height:h, data:new Uint8ClampedArray(w*h*4)};
@@ -380,6 +396,37 @@ const flipped = (T.processImage(fakeImg), lastPutImageData);
 ok('export ignores the preview flip toggle',
    flipped.data.every((v,i) => v === out.data[i]));
 T.$('flip').checked = false; T.$('flip').onchange();
+
+/* 6b. images that are not Picrew exports get fitted, not refused */
+console.log('\noversized input');
+const saved4x = srcData;
+const fixture = (w, h) => {
+  const d = {width:w, height:h, data:new Uint8ClampedArray(w*h*4)};
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++){
+    const i = (y*w + x)*4;
+    d.data[i] = x % 251; d.data[i+1] = y % 253; d.data[i+2] = (x^y) % 249;
+    d.data[i+3] = (x < w/8) ? 0 : 255;              // transparent left margin
+  }
+  return d;
+};
+for (const [w, h, ew] of [[1024,1024,180], [900,1600,101], [3200,400,1440],
+                          [200,3000,12]]){
+  srcData = fixture(w, h);
+  const img = {naturalWidth:w, naturalHeight:h};
+  let out;
+  try { out = T.processImage(img); }
+  catch (err){ out = err; }
+  ok(`${w}x${h} is accepted`, !(out instanceof Error),
+     out instanceof Error ? out.message : '');
+  if (out instanceof Error) continue;
+  ok(`${w}x${h} fits the ${T.TARGET_H}px frame`, out.h === T.TARGET_H,
+     `got ${out.h}`);
+  ok(`${w}x${h} keeps its aspect`, out.w === ew, `got ${out.w}, wanted ${ew}`);
+  ok(`${w}x${h} keeps its transparency`, out.opaque === false);
+}
+srcData = saved4x;
+ok('a Picrew-sized export still goes down the exact path',
+   T.processImage(fakeImg).scale === N);
 
 /* 7. the export mapping — two tags, one slot */
 console.log('\nexport mapping');

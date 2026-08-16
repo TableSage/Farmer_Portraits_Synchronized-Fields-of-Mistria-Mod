@@ -33,6 +33,12 @@ Unzip it and read `README.txt`; it covers the install start to finish.
   whose exports work as they come: the tool downsamples, mirrors and pads them
   for you
 
+**Art from somewhere else works too.** Any PNG of any size is accepted: anything
+taller than the portrait frame is scaled down to fit, keeping its aspect ratio,
+and the tool says what it resized. Nothing is ever cropped, so if your character
+sits in a lot of empty space, trim it in an image editor first or they will
+render small.
+
 ## Install
 
 Everything lives in the game's own mods folder, the one MOMI reads:
