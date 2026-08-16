@@ -499,6 +499,17 @@ ok('it says so out loud when the table is missing',
 ok('registers a tick and declares itself',
    gml.includes('mmapi_register(sage_fps_tick)') &&
    gml.includes('mmapi_mod_declare(SAGE_FPS_ID'));
+/* The mod states its version twice, in two languages, and nothing in the build
+   makes them agree. They were set once and then sat still while the releases
+   moved, which is how the shipped mod ended up declaring a version no release
+   ever had. This does not know the right number - only that one edit is a
+   mistake and two is a decision. */
+const manifestVersion = JSON.parse(fs.readFileSync(
+  new URL('./FarmerPortraitsSync/manifest.json', import.meta.url), 'utf8')).version;
+const declaredVersion = (gml.match(/mmapi_mod_declare\(SAGE_FPS_ID,\s*"([^"]+)"/) || [])[1];
+ok('manifest.json and mmapi_mod_declare state the same version',
+   manifestVersion === declaredVersion,
+   `manifest ${manifestVersion} vs gml ${declaredVersion}`);
 // Two triggers, and both matter. The context edge is what makes the clothes
 // change when you walk indoors rather than waiting for someone to talk to you;
 // the textbox edge is what keeps them agreeing with the portrait once one is on

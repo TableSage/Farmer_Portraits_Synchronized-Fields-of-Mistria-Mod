@@ -161,5 +161,5 @@ function sage_fps_register() {
     mmapi_register(sage_fps_tick);
 }
 
-mmapi_mod_declare(SAGE_FPS_ID, "1.2.0");
+mmapi_mod_declare(SAGE_FPS_ID, "1.1.2");
 sage_fps_register();

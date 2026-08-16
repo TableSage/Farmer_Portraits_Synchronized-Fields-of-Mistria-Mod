@@ -1,7 +1,7 @@
 {
     "name": "Farmer Portraits Sync",
     "author": "Sage",
-    "version": "1.2.0",
+    "version": "1.1.2",
     "description": "Swaps the farmer's outfit preset to match the portrait shown in dialogue.",
     "minInstallerVersion": "0.13.0",
     "manifestVersion": 1,
