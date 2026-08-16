@@ -16,6 +16,13 @@ FarmerPortraitsExample/
 NOTES.md
 NOTES_portrait_tool.md
 
-# The Nexus page copy, in their BBCode. Same words as README.md, different
-# markup and different links - update both together or they drift.
+# The Nexus page, in their BBCode. It is a COPY of what is live, not the source:
+# Sage edits the page in Nexus's own editor and pastes the result back here, so
+# re-read this file before editing it rather than trusting an earlier read.
+#
+# It used to be the same words as README.md. As of 2026-08-16 the two are
+# deliberately different documents and are NOT kept in sync: this one carries the
+# AI disclosure (Nexus policy) and an update log; README.md carries neither,
+# because GitHub releases hold the changelog. Shared feature wording is still
+# worth keeping aligned - the structure is not.
 NEXUS_page.bbcode
