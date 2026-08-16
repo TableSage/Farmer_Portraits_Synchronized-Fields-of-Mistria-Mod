@@ -15,3 +15,7 @@ FarmerPortraitsExample/
 # inside portrait_tool.html, lifted out so the download carries no dev notes.
 NOTES.md
 NOTES_portrait_tool.md
+
+# The Nexus page copy, in their BBCode. Same words as README.md, different
+# markup and different links - update both together or they drift.
+NEXUS_page.bbcode
