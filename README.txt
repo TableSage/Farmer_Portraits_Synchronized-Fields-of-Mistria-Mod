@@ -1,5 +1,5 @@
 ==============================================================
-  FARMER PORTRAITS - SYNCHRONIZED
+  FARMER OUTFITS AND PORTRAITS - SYNCHRONIZED
   Dialogue portraits that also change your farmer's outfit
 ==============================================================
 
@@ -9,8 +9,10 @@
     portraits at all - see OUTFITS ONLY below.
 
   IN HERE
-    portrait_tool.html    The builder. Opens in any browser.
-    FarmerPortraitsSync   The outfit mod. Install once.
+    portrait_tool.html
+        The builder. Opens in any browser.
+    FarmerOutfitsPortraitsSync
+        The outfit mod. Install once.
 
     The builder pulls its look (NES.css, Press Start 2P)
     off the web the first time you open it. Offline it
@@ -60,12 +62,17 @@
 
   1. INSTALL THE OUTFIT MOD  (once, ever)
   ---------------------------------------
-    Drag FarmerPortraitsSync into your game's mods folder,
-    next to the "Farmer Portraits" folder already there:
+    Drag FarmerOutfitsPortraitsSync into your game's mods
+    folder, next to the "Farmer Portraits" folder already
+    there:
 
         ...\steamapps\common\Fields of Mistria\mods\
 
     That's the folder for every step below, too.
+
+    UPGRADING? This folder used to be called
+    FarmerPortraitsSync. Delete that one. Two copies of the
+    same mod will both try to dress your farmer.
 
 
   2. BUILD YOUR PORTRAITS

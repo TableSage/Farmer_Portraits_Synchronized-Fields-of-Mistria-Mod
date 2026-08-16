@@ -5,7 +5,7 @@ PORTRAIT_TOOL_PRD.md
 # Test artifact, rewritten by every `node test_tool.mjs` run.
 test_zip.zip
 
-# Exports land here if you unzip them in place. FarmerPortraitsSync/ is NOT
+# Exports land here if you unzip them in place. FarmerOutfitsPortraitsSync/ is NOT
 # ignored - it ships, and is the one mod folder that lives in this repo.
 FarmerPortraitsExample/
 *.zip
@@ -26,3 +26,13 @@ NOTES_portrait_tool.md
 # because GitHub releases hold the changelog. Shared feature wording is still
 # worth keeping aligned - the structure is not.
 NEXUS_page.bbcode
+
+# The Nexus API key. release.mjs reads it from the NEXUS_API_KEY environment
+# variable and never from a file, so this is a place to keep it, not a place
+# anything loads on its own - source it into the shell before `nexus --go`.
+# Broad patterns on purpose: the cost of one of these reaching a public repo is
+# a stranger publishing files under Sage's account.
+.env
+.env.*
+*.key
+*.secret

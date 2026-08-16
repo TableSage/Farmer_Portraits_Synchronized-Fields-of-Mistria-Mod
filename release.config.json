@@ -5,12 +5,12 @@
   "_mod_id": "The number in your own mod's URL, https://www.nexusmods.com/fieldsofmistria/mods/<this>.",
   "mod_id": "1013",
 
-  "zip_folder": "Farmer Portraits Synchronized",
+  "zip_folder": "Farmer Outfits and Portraits - Synchronized",
 
-  "_file_name": "The name of the file on the Nexus page, without the version. Max 50 chars, letters digits space _ ' ( ) . - only.",
-  "file_name": "Farmer Portraits Synchronized",
+  "_file_name": "The name of the file on the Nexus page, without the version. Max 50 chars, letters digits space _ ' ( ) . - only. This one is 43, so ' V1.1.2' takes it to exactly 50 - a version part that grows to two digits will not fit, and the name has to shorten before that day.",
+  "file_name": "Farmer Outfits and Portraits - Synchronized",
 
-  "_file_name_versioned": "Sage names the file 'Farmer Portraits Synchronized V1.1.2', with the version on the end. So the uploaded name gets ' V<version>' appended, and the search for the file to add a version TO strips a trailing version before comparing. Without that the name never matches and every release silently creates a second download.",
+  "_file_name_versioned": "Sage names the file 'Farmer Outfits and Portraits - Synchronized V1.1.2', with the version on the end. So the uploaded name gets ' V<version>' appended, and the search for the file to add a version TO strips a trailing version before comparing. Without that the name never matches and every release silently creates a second download.",
   "file_name_versioned": true,
 
   "file_category": "main",

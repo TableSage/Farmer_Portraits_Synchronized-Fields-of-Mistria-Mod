@@ -1,4 +1,4 @@
-# Farmer Portraits Synchronized
+# Farmer Outfits and Portraits - Synchronized
 
 ![The farmer walking to the beach and starting a conversation: the dialogue portrait and the mini-sprite are wearing the same summer outfit](docs/portrait-sync-demo.gif)
 
@@ -26,7 +26,7 @@ Unzip it and read `README.txt`; it covers the install start to finish.
 | | |
 |---|---|
 | `portrait_tool.html` | the builder. Open it in a browser. No install, no server, no network |
-| `FarmerPortraitsSync/` | the outfit mod. Goes in your mods folder once |
+| `FarmerOutfitsPortraitsSync/` | the outfit mod. Goes in your mods folder once |
 | `README.txt` | the instructions that ship with a release |
 
 ## You need
@@ -39,13 +39,11 @@ Unzip it and read `README.txt`; it covers the install start to finish.
   whose exports work as they come: the tool downsamples, mirrors and pads them
   for you
 
-**Art from somewhere else works too, at full detail.** Any PNG of any size is
-accepted, and a large one stays large. The mod scales the portrait to the frame
-as it draws it, so a hand-drawn illustration keeps every pixel you gave it
-instead of being flattened to the frame's own size. Only art taller than 720px
-is scaled down, keeping its aspect ratio, and the tool says what it resized.
-Nothing is ever cropped, so if your character sits in a lot of empty space, trim
-it in an image editor first or they will render small.
+**Art from somewhere else works too, at full detail.** A PNG image file of any
+size is accepted. Only art taller than 720px is scaled down, keeping its aspect
+ratio, and the tool tells you when it resized something. Nothing is ever
+cropped, so if your character sits in a lot of empty space, trim it in an image
+editor first or it might look smaller than intended.
 
 ## Install
 
@@ -55,8 +53,12 @@ Everything lives in the game's own mods folder, the one MOMI reads:
 ...\steamapps\common\Fields of Mistria\mods\
 ```
 
-**1. Once, ever.** Put `FarmerPortraitsSync` in there, beside the
+**1. Once, ever.** Put `FarmerOutfitsPortraitsSync` in there, beside the
 `Farmer Portraits` folder that is already there.
+
+> **Upgrading from an earlier release?** The outfit mod folder used to be called
+> `FarmerPortraitsSync`. Delete that one. Leaving it behind means two copies of
+> the same mod dressing your farmer.
 
 **2. Build your portraits.** Open `portrait_tool.html`. Drag your PNGs onto the
 slots, give each one a tag, tick **Use as Default** on exactly one, then
@@ -79,6 +81,8 @@ To change your portraits later, repeat steps 2 to 4. The tool remembers your
 work between visits, and the outfit mod from step 1 never needs touching again.
 
 ## How it works
+
+![Two rows, each pairing a dialogue portrait with the matching mini-sprite: "Going to the beach?" in a sun hat and swim wrap, "Seasonal outfit?" in a yellow turtleneck. A side panel lists the tags you can trigger on: seasons, weather, location, weekday, day of month, indoor/outdoor, cutscenes](docs/ModCover.png)
 
 ![The builder with all eight slots filled: each tile lists its tags, and the portrait selected below carries seven of them at once](docs/portrait-tool.png)
 

@@ -486,11 +486,11 @@ ok('table braces balance',
    (table.match(/\{/g) || []).length === (table.match(/\}/g) || []).length);
 
 /* the outfit mod, which ships fixed beside the tool rather than generated */
-const SYNC = new URL('./FarmerPortraitsSync/gml/FarmerPortraitsSync.gml',
+const SYNC = new URL('./FarmerOutfitsPortraitsSync/gml/FarmerOutfitsPortraitsSync.gml',
                      import.meta.url);
 ok('the outfit mod ships as a real folder, not a build artifact',
    fs.existsSync(SYNC) &&
-   fs.existsSync(new URL('./FarmerPortraitsSync/manifest.json', import.meta.url)));
+   fs.existsSync(new URL('./FarmerOutfitsPortraitsSync/manifest.json', import.meta.url)));
 const gml = fs.readFileSync(SYNC, 'utf8');
 ok('it reads the generated table instead of carrying one',
    gml.includes('global[$ "__sage_fps_table"]') && !gml.includes('_m[$ "'));
@@ -505,7 +505,7 @@ ok('registers a tick and declares itself',
    ever had. This does not know the right number - only that one edit is a
    mistake and two is a decision. */
 const manifestVersion = JSON.parse(fs.readFileSync(
-  new URL('./FarmerPortraitsSync/manifest.json', import.meta.url), 'utf8')).version;
+  new URL('./FarmerOutfitsPortraitsSync/manifest.json', import.meta.url), 'utf8')).version;
 const declaredVersion = (gml.match(/mmapi_mod_declare\(SAGE_FPS_ID,\s*"([^"]+)"/) || [])[1];
 ok('manifest.json and mmapi_mod_declare state the same version',
    manifestVersion === declaredVersion,
