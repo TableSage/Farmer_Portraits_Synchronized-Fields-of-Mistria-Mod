@@ -233,7 +233,21 @@ function github(version){
 
   if (live){
     say(`  ${tag} already exists, updating it`);
-    if (haveNotes) gh(['release', 'edit', tag, '--notes-file', notesFile]);
+    // Release notes get edited on github.com, the same way the Nexus page does,
+    // and pushing the local file over a hand edit loses it with no warning and
+    // no undo. So say so and leave it: the live body is the one people read.
+    if (haveNotes){
+      const body = JSON.parse(live).body.replace(/\r\n/g, '\n').trim();
+      if (body !== fs.readFileSync(notesFile, 'utf8').replace(/\r\n/g, '\n').trim()){
+        if (!has('--overwrite-notes')){
+          say(`  the live notes differ from RELEASE_NOTES_${version}.md, leaving them alone.`);
+          say('    `gh release view ' + tag + ' --json body --jq .body` to see the live text,');
+          say('    --overwrite-notes to push the local file over it.');
+        } else {
+          gh(['release', 'edit', tag, '--notes-file', notesFile]);
+        }
+      }
+    }
     gh(['release', 'upload', tag, zip, '--clobber']);
   } else {
     if (!haveNotes)
