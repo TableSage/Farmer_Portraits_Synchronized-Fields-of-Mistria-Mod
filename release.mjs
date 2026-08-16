@@ -321,6 +321,21 @@ async function api(method, endpoint, { body, key } = {}){
   return text ? JSON.parse(text).data : null;
 }
 
+// The name on the page carries the version ("Farmer Portraits Synchronized
+// V1.1.2"), so an exact-match search for the previous file never matches and
+// every release quietly becomes a second download instead of a new version of
+// the first. Strip a trailing version before comparing.
+const uploadName = v => CONFIG.file_name_versioned
+  ? `${CONFIG.file_name} V${v}` : CONFIG.file_name;
+
+const baseName = n => n.replace(/\s+[vV]?\d+(\.\d+)*\s*$/, '').trim();
+
+function findFile(files){
+  const want = baseName(CONFIG.file_name);
+  return files.find(f => f.name === CONFIG.file_name)
+      || files.find(f => baseName(f.name).toLowerCase() === want.toLowerCase());
+}
+
 function ask(question){
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
   return new Promise(resolve => rl.question(question, a => { rl.close(); resolve(a.trim()); }));
@@ -339,14 +354,32 @@ async function nexus(version, { go, tested }){
 
   say(`\n  Nexus plan for ${version}\n`);
   say(`    mod          ${CONFIG.game_domain}/mods/${CONFIG.mod_id}`);
-  say(`    file         ${CONFIG.file_name}  (category: ${CONFIG.file_category})`);
+  say(`    file         ${uploadName(version)}  (category: ${CONFIG.file_category})`);
   say(`    upload       ${zipName(version)}, ${size} bytes`);
   say(`    sha256       ${crypto.createHash('sha256').update(fs.readFileSync(zip)).digest('hex').slice(0, 16)}`);
   say(`    mod version  ${CONFIG.update_mod_version ? 'will be set to ' + version : 'left alone'}`);
   say(`    changelog    ${notes ? `${notes.length} chars from the GitHub notes` : 'none found, skipping'}`);
+
+  // The dry run is worth little if it cannot say WHICH file it would update.
+  // Reads are safe, so do them now when there is a key: new-version-of-existing
+  // versus brand-new-second-download is the decision worth seeing beforehand.
+  if (key){
+    const mod = await api('GET', `/games/${CONFIG.game_domain}/mods/${CONFIG.mod_id}`, { key });
+    const files = (await api('GET', `/mods/${mod.id}/files`, { key })).mod_files;
+    const target = findFile(files);
+    say('');
+    say(`    on the page  ${files.length ? files.map(f => f.name).join(', ') : 'no files yet'}`);
+    say(`    would       ${target
+      ? `add version ${version} to "${target.name}"`
+      : 'CREATE A NEW FILE, which appears as a second download'}`);
+  } else {
+    say('\n    NEXUS_API_KEY is not set, so this cannot say which file it would');
+    say('    update. Set it to see that before committing to anything.');
+  }
+
   say('');
   say('    POST /uploads  ->  PUT presigned_url  ->  POST /uploads/{id}/finalise');
-  say(`    then a new version of the existing mod file, or a new mod file if none matches`);
+  say('    then a new version of the existing mod file, or a new mod file if none matches');
   if (notes) say('    then POST /mods/{id}/changelogs  (APPEND ONLY - a re-run duplicates it)');
   say('');
   say('    the description page is NOT touched. There is no API for it.');
@@ -394,11 +427,11 @@ async function nexus(version, { go, tested }){
 
   const mod = await api('GET', `/games/${CONFIG.game_domain}/mods/${CONFIG.mod_id}`, { key });
   const files = (await api('GET', `/mods/${mod.id}/files`, { key })).mod_files;
-  const target = files.find(f => f.name === CONFIG.file_name);
+  const target = findFile(files);
 
   const shared = {
     upload_id: upload.id,
-    name: CONFIG.file_name,
+    name: uploadName(version),
     version,
     file_category: CONFIG.file_category,
     update_mod_version: CONFIG.update_mod_version,
@@ -410,7 +443,7 @@ async function nexus(version, { go, tested }){
       key, body: { ...shared, archive_existing_file: CONFIG.archive_existing_file },
     });
   } else {
-    say(`  creating a new mod file "${CONFIG.file_name}"`);
+    say(`  creating a new mod file "${uploadName(version)}"`);
     await api('POST', '/mod-files', {
       key,
       body: { ...shared, mod_id: mod.id,
