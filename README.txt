@@ -5,7 +5,8 @@
 
   YOU NEED
     MOMI, the "Farmer Portraits" mod by DeUlo, and your
-    portraits as PNG with a transparent background.
+    portraits as PNG with a transparent background. Or no
+    portraits at all - see OUTFITS ONLY below.
 
   IN HERE
     portrait_tool.html    The builder. Opens in any browser.
@@ -37,6 +38,26 @@
     Same picture, several tags, one upload - see step 2c.
 
 
+  OUTFITS ONLY, NO PORTRAITS
+  --------------------------
+    If you want the automatic outfit switching but no
+    portraits in the dialogue box at all, tick "Do Not Use
+    Portrait" on each one. That slot then needs no picture,
+    and nothing is drawn where the portrait would be.
+
+    Tag it as usual - the tags are what pick the outfit.
+    Tick it on all of them and dialogue looks exactly like
+    vanilla while your farmer still changes clothes with
+    the season, the weather and where you are.
+
+    DeUlo's "Farmer Portraits" is still required. The outfit
+    mod borrows it to work out which trigger is winning; it
+    just never asks it to draw anything.
+
+    Mixing the two is fine, and does what it looks like: the
+    ticked ones show nothing, the rest show their art.
+
+
   1. INSTALL THE OUTFIT MOD  (once, ever)
   ---------------------------------------
     Drag FarmerPortraitsSync into your game's mods folder,
@@ -54,11 +75,16 @@
     a. Drag your PNGs onto the slots, or click a slot and use
        "Upload" in the panel below.
 
-       Any size works. Picrew exports go in as they are;
-       anything bigger is scaled down to fit the portrait
-       frame, keeping its shape, and the tool says so. It
-       never crops, so trim big empty margins yourself or
-       your character renders small.
+       Any size works, and detail is kept. Picrew exports go
+       in as they are. A big hand-drawn illustration stays
+       big: the mod scales the portrait down as it draws it,
+       so the extra pixels are not wasted. Only art taller
+       than 720px is scaled down, keeping its shape, and the
+       tool says so. It never crops, so trim big empty
+       margins yourself or your character renders small.
+
+       Or tick "Do Not Use Portrait" under the picture to
+       skip the art entirely and only switch the outfit.
     b. Give each one a tag: season / weather / plus one more
        condition. Tick "Use as Default" on exactly one.
 

@@ -137,11 +137,11 @@ globalThis.URL.revokeObjectURL = () => {};
 const T = {};
 new Function('__T', script + `
   Object.assign(__T, {makeZip, crc32, processImage, toNative, finish, buildFiles,
-    statusOf, tagOf, validate, advisories, presetsNeeded, everyCard, everyTrigger,
-    slots, cells, conflictsFor, coverFor, overlaps, blankTrig,
+    blankArt, statusOf, tagOf, validate, advisories, presetsNeeded, everyCard,
+    everyTrigger, slots, cells, conflictsFor, coverFor, overlaps, blankTrig,
     shadowed, covered, regionOf, valuesFor, SPOILER_LOCATIONS, LOCATIONS, CUTSCENES,
     render, select, buildCards, acceptFiles, loadInto, restoreState, saveState,
-    STORE, PATTERNS, TARGET_H, MOD_DIR, $});
+    STORE, PATTERNS, TARGET_H, MAX_H, BLANK_W, MOD_DIR, $});
 `)(T);
 
 let fails = 0;
@@ -397,7 +397,13 @@ ok('export ignores the preview flip toggle',
    flipped.data.every((v,i) => v === out.data[i]));
 T.$('flip').checked = false; T.$('flip').onchange();
 
-/* 6b. images that are not Picrew exports get fitted, not refused */
+/* 6b. images that are not Picrew exports get fitted, not refused.
+   The frame is only padded up to TARGET_H; past that the art's own height IS
+   the frame, because DeUlo scales by 180/sprite_height at draw time and so
+   renders any height at the same size on screen. Downscaling to 180 here threw
+   away detail the game would have kept — the whole point of the ceiling being
+   MAX_H rather than TARGET_H. Composition is unchanged either way: these all
+   filled the frame before and still do. */
 console.log('\noversized input');
 const saved4x = srcData;
 const fixture = (w, h) => {
@@ -409,8 +415,8 @@ const fixture = (w, h) => {
   }
   return d;
 };
-for (const [w, h, ew] of [[1024,1024,180], [900,1600,101], [3200,400,1440],
-                          [200,3000,12]]){
+for (const [w, h, ew, eh] of [[1024,1024,720,720], [900,1600,405,720],
+                              [3200,400,3200,400], [200,3000,48,720]]){
   srcData = fixture(w, h);
   const img = {naturalWidth:w, naturalHeight:h};
   let out;
@@ -419,11 +425,21 @@ for (const [w, h, ew] of [[1024,1024,180], [900,1600,101], [3200,400,1440],
   ok(`${w}x${h} is accepted`, !(out instanceof Error),
      out instanceof Error ? out.message : '');
   if (out instanceof Error) continue;
-  ok(`${w}x${h} fits the ${T.TARGET_H}px frame`, out.h === T.TARGET_H,
-     `got ${out.h}`);
+  ok(`${w}x${h} keeps every pixel the game can use`, out.h === eh,
+     `got ${out.h}, wanted ${eh}`);
   ok(`${w}x${h} keeps its aspect`, out.w === ew, `got ${out.w}, wanted ${ew}`);
   ok(`${w}x${h} keeps its transparency`, out.opaque === false);
 }
+ok(`nothing survives taller than the ${T.MAX_H}px ceiling`,
+   [[1024,1024], [900,1600], [200,3000], [4000,9000]].every(([w,h]) => {
+     srcData = fixture(w, h);
+     return T.processImage({naturalWidth:w, naturalHeight:h}).h <= T.MAX_H;
+   }));
+srcData = fixture(90, 160);
+const small = T.processImage({naturalWidth:90, naturalHeight:160});
+ok('art shorter than the frame is still padded to it, not stretched up to fill',
+   small.w === 90 && small.h === T.TARGET_H, `got ${small.w}x${small.h}`);
+
 srcData = saved4x;
 ok('a Picrew-sized export still goes down the exact path',
    T.processImage(fakeImg).scale === N);
@@ -862,6 +878,78 @@ ok('reset empties every slot',
    T.everyCard().length === 8 && T.everyCard().every(x => !x.card.url));
 ok('reset clears the saved copy too', !store.has(T.STORE) ||
    JSON.parse(store.get(T.STORE)).slots.every(s => s.cards.every(c => !c.url)));
+
+/* 14. slots that switch the outfit and draw nothing.
+   The thing being protected is the mixed board: a tag with no sprite falls
+   through to the next key in DeUlo's precedence list, so a slot marked
+   "Do Not Use Portrait" has to ship a transparent frame rather than no file. Skip that
+   and the slot shows somebody else's portrait instead of nothing. */
+console.log('\nno-portrait slots');
+
+const clear = T.blankArt();
+ok('the placeholder is a full-height frame, so the mod\'s fit factor stays 1',
+   clear.w === T.BLANK_W && clear.h === T.TARGET_H,
+   `${clear.w}x${clear.h}`);
+ok('and every pixel of it is clear',
+   clear.opaque === false && lastPutImageData.data.every(v => v === 0));
+
+T.$('reset').onclick();
+T.select(0);
+ok('a portrait with no image blocks the export',
+   T.validate().some(m => m === '8 portrait(s) need an image'),
+   JSON.stringify(T.validate()));
+
+ctl(0, 0).noArt.checked = true;
+ctl(0, 0).noArt.onchange();
+ok('ticking Do Not Use Portrait lifts that block for that portrait alone',
+   T.validate().some(m => m === '7 portrait(s) need an image'),
+   JSON.stringify(T.validate()));
+ok('the flag is saved with the board',
+   JSON.parse(store.get(T.STORE)).slots[0].cards[0].noArt === true);
+T.restoreState();
+ok('and comes back on reload', T.slots[0].cards[0].noArt === true);
+
+T.everyCard().forEach(({card}, i) => {
+  card.noArt = true;
+  card.trigs[0].isDefault = i === 0;
+  if (i === 0) return;
+  card.trigs[0].season = SEA[i % 4];
+  card.trigs[0].weather = WEA[Math.floor(i / 4) % 3];
+});
+T.buildCards();
+T.render();
+ok('a whole board of them exports with no artwork at all',
+   T.validate().length === 0, JSON.stringify(T.validate()));
+
+const noart = (await T.buildFiles()).files;
+ok('every tag still gets a sprite pair',
+   noart.filter(f => f.name.endsWith('.png')).length === T.everyTrigger().length &&
+   noart.filter(f => f.name.endsWith('.meta.toml')).length === T.everyTrigger().length,
+   noart.filter(f => f.name.endsWith('.png')).length + ' png');
+ok('no transparency warning on a frame that is nothing but transparency',
+   (await T.buildFiles()).warnings.length === 0);
+
+const noartTable = new TextDecoder().decode(
+  noart.find(f => f.name.endsWith('FarmerPortraitsSlots.gml')).data);
+ok('the outfit table is still fully populated',
+   T.everyTrigger().every(x => noartTable.includes(`_m[$ "${T.tagOf(x.trig)}"] =`)),
+   noartTable);
+
+/* mixed: one real portrait, the rest blank. Both kinds must reach the zip. */
+T.slots[1].cards[0].noArt = false;
+T.slots[1].cards[0].url = 'data:image/png;base64,AAAA';
+T.slots[1].cards[0].img = fakeImg;
+T.render();
+ok('a mixed board is valid too', T.validate().length === 0,
+   JSON.stringify(T.validate()));
+const mixed = (await T.buildFiles()).files;
+ok('the blanked slots keep their sprites beside the real one',
+   mixed.filter(f => f.name.endsWith('.png')).length === T.everyTrigger().length);
+
+/* dropping art on the board must not quietly fill a slot somebody blanked */
+T.acceptFiles([{name:'a.png'}]);
+ok('a spread drop skips blanked slots',
+   T.slots[0].cards[0].noArt === true && !T.slots[0].cards[0].url);
 
 console.log(fails ? `\n${fails} FAILED\n` : '\nall passed\n');
 process.exit(fails ? 1 : 0);

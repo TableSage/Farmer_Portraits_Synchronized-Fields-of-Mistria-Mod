@@ -33,16 +33,19 @@ Unzip it and read `README.txt`; it covers the install start to finish.
 
 - [MOMI](https://www.nexusmods.com/fieldsofmistria/mods/78), the mod installer
 - [Farmer Portraits](https://www.nexusmods.com/fieldsofmistria/mods/703) by DeUlo
-- Portraits as PNG with a transparent background. This was built around
+- Portraits as PNG with a transparent background — or none at all, if you only
+  want the outfit switching. This was built around
   [this Picrew](https://picrew.me/en/image_maker/2750165/) by **not_darkly**,
   whose exports work as they come: the tool downsamples, mirrors and pads them
   for you
 
-**Art from somewhere else works too.** Any PNG of any size is accepted: anything
-taller than the portrait frame is scaled down to fit, keeping its aspect ratio,
-and the tool says what it resized. Nothing is ever cropped, so if your character
-sits in a lot of empty space, trim it in an image editor first or they will
-render small.
+**Art from somewhere else works too, at full detail.** Any PNG of any size is
+accepted, and a large one stays large. The mod scales the portrait to the frame
+as it draws it, so a hand-drawn illustration keeps every pixel you gave it
+instead of being flattened to the frame's own size. Only art taller than 720px
+is scaled down, keeping its aspect ratio, and the tool says what it resized.
+Nothing is ever cropped, so if your character sits in a lot of empty space, trim
+it in an image editor first or they will render small.
 
 ## Install
 
@@ -117,6 +120,13 @@ portrait is simply gone all summer with no error anywhere. The panel lists the
 tags that win before this one and what each costs, with a button that adds the
 one tag which wins those contexts back. When no tag can (there is no
 `saturday_beach`), it says so instead of offering a button that would not work.
+
+**You can have the outfits without the portraits.** Tick **Do Not Use Portrait**
+on a slot and it needs no picture: the outfit still switches on its tags, and
+nothing is drawn in the dialogue box. Tick it on all eight and dialogue looks
+exactly like vanilla while your farmer keeps changing clothes with the season,
+the weather and where you are. DeUlo's mod is still required either way — the
+outfit half borrows it to work out which trigger is winning.
 
 **Export gives you one zip holding one correctly named mod folder.** The
 tag-to-slot table is generated inside that folder, so the clothes and the

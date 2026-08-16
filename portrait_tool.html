@@ -38,6 +38,7 @@ h2{font-size:1.5rem;margin:0}
 .tile img{max-width:100%;max-height:100%;image-rendering:pixelated}
 .tile .count{position:absolute;bottom:0;right:0}
 .tile .empty{opacity:.6}
+.tile .empty.blank{line-height:1.8;text-align:center;padding:0 .5rem}
 
 .cap{flex:1;min-width:0;height:16rem;overflow-y:auto}
 .cap b{display:block;font-weight:400;white-space:nowrap;overflow:hidden;
@@ -63,7 +64,11 @@ h2{font-size:1.5rem;margin:0}
 .preview img{position:relative;width:100%;height:100%;object-fit:contain;
   image-rendering:pixelated}
 .preview .arrow{font-size:4rem;line-height:1}
+.preview.none{cursor:default}
+.preview.none::before{opacity:.06}
+.preview .lbl{position:relative;text-align:center}
 .filename{overflow-wrap:anywhere}
+.chk.noart{margin-top:auto}
 
 .taglist{table-layout:auto;width:100%}
 .taglist .arrow{width:1%;padding-right:.5rem;white-space:nowrap}
@@ -276,12 +281,15 @@ function valuesFor(kind, keep){
 
 const SLOTS = 8;
 const TARGET_H = 180;
+const MAX_H = 720;
+const BLANK_W = 90;
 
 const MOD_DIR = 'FarmerPortraitsExample';
 
 const blankTrig = () =>
   ({isDefault:false, season:'', weather:'', kind:'', value:''});
-const blank = () => ({name:'', url:'', img:null, trigs:[blankTrig()]});
+const blank = () =>
+  ({name:'', url:'', img:null, noArt:false, trigs:[blankTrig()]});
 const slots = Array.from({length:SLOTS}, () => ({cards:[blank()]}));
 let current = 0;
 
@@ -303,13 +311,18 @@ function saveState(){
   try {
     localStorage.setItem(STORE, JSON.stringify({v:1, current, spoilers,
       slots: slots.map(s => ({cards: s.cards.map(c => ({
-        name:c.name, url:c.url,
+        name:c.name, url:c.url, noArt:c.noArt,
         trigs: c.trigs.map(t => ({isDefault:t.isDefault, season:t.season,
           weather:t.weather, kind:t.kind, value:t.value})),
       }))}))}));
     saveNote = '';
   } catch (err){
-    saveNote = 'browser storage is unavailable, your work is not being saved';
+    const full = err && (err.name === 'QuotaExceededError'
+      || err.name === 'NS_ERROR_DOM_QUOTA_REACHED');
+    saveNote = full
+      ? 'these portraits are too large for browser storage, your work is not '
+        + 'being remembered between visits. Export before you close the tab'
+      : 'browser storage is unavailable, your work is not being saved';
   }
 }
 
@@ -333,6 +346,7 @@ function restoreState(){
     if (!s || !Array.isArray(s.cards) || !s.cards.length) return;
     slots[i].cards = s.cards.map(c => Object.assign(blank(), {
       name: String(c.name || ''), url: typeof c.url === 'string' ? c.url : '',
+      noArt: !!c.noArt,
 
       trigs: Array.isArray(c.trigs) && c.trigs.length
         ? c.trigs.map(trigOf) : [trigOf(c)],
@@ -677,7 +691,19 @@ function makeCard(card, idx){
   const tagcol  = el('div', 'tagcol nes-container with-title');
   const ctlcol  = el('div', 'ctlcol nes-container with-title');
   const panel   = el('div', 'tree nes-container with-title');
-  art.append(el('p', 'title', 'Picture'), preview, filename);
+  const noArtChk = el('label', 'chk noart');
+  const noArt = document.createElement('input');
+  noArt.type = 'checkbox';
+  noArt.className = 'nes-checkbox';
+  noArtChk.title = 'Switch the outfit for these tags, but draw nothing in the '
+    + 'dialogue box. Needs no picture.';
+  noArtChk.append(noArt, el('span', '', 'Do Not Use Portrait'));
+  noArt.onchange = () => {
+    card.noArt = noArt.checked;
+    repaintCards();
+    render();
+  };
+  art.append(el('p', 'title', 'Picture'), preview, filename, noArtChk);
   detail.append(art, tagcol, ctlcol, panel);
 
   if (card._sel === undefined || card._sel >= card.trigs.length) card._sel = 0;
@@ -812,11 +838,14 @@ function makeCard(card, idx){
   }
 
   function paint(){
-    preview.className = 'preview nes-container';
-    preview.innerHTML = card.url ? `<img src="${card.url}" alt="">`
+    noArt.checked = card.noArt;
+    preview.className = 'preview nes-container' + (card.noArt ? ' none' : '');
+    preview.innerHTML = card.noArt
+      ? '<div class="lbl nes-text is-disabled">Slot Left Blank</div>'
+      : card.url ? `<img src="${card.url}" alt="">`
       : '<div class="arrow">&#11014;</div><div class="lbl">Upload</div>';
     filename.className = 'filename nes-text is-disabled';
-    filename.textContent = card.name;
+    filename.textContent = card.noArt ? '' : card.name;
     card.trigs.forEach((t, ti) => {
       const v = verdictOf(t);
       const b = tagPicks[ti];
@@ -835,12 +864,16 @@ function makeCard(card, idx){
     paintPanel();
   }
 
-  preview.onclick = () => { pickTarget = card; $('picker').click(); };
+  preview.onclick = () => {
+    if (card.noArt) return;
+    pickTarget = card;
+    $('picker').click();
+  };
 
   card._paint = paint;
 
   card._trigs = [row.els];
-  card._els = Object.assign({preview, filename, panel, addTag, delCard,
+  card._els = Object.assign({preview, filename, panel, addTag, delCard, noArt,
                              tagPicks, tagXs, tagRows}, row.els);
   paint();
   return box;
@@ -891,11 +924,13 @@ function render(){
   slots.forEach((s, i) => {
     const cell = cells[i];
     cell.classList.toggle('is-dark', i === current);
-    const shown = s.cards.find(c => c.url);
+    const shown = s.cards.find(c => c.url && !c.noArt);
     const tile = cell.querySelector('.tile');
 
+    const isBlank = s.cards.some(c => c.noArt);
     const art = shown ? `<img src="${shown.url}" alt="">`
-                      : '<span class="empty nes-text is-disabled">Empty</span>';
+      : `<span class="empty${isBlank ? ' blank' : ''} nes-text is-disabled">`
+        + `${isBlank ? 'Slot Left Blank' : 'Empty'}</span>`;
     const body = (s.cards.length > 1
           ? `<span class="count nes-text is-primary">${s.cards.length}x</span>` : '')
       + art;
@@ -956,7 +991,7 @@ function advisories(d = shadowed()){
 function validate(d = shadowed()){
   const out = [];
 
-  const cards = everyCard(), all = everyTrigger();
+  const cards = everyCard().filter(x => !x.card.noArt), all = everyTrigger();
   const noImage = cards.filter(x => !x.card.url).length;
   if (noImage) out.push(`${noImage} portrait(s) need an image`);
 
@@ -998,10 +1033,11 @@ function loadInto(card, file){
     catch (err){ notice = `${esc(file.name)}: ${err.message}`; repaintCards(); render(); return; }
     if (nat.fitted)
       notice = `${esc(file.name)} was ${im.naturalWidth || im.width}x`
-        + `${im.naturalHeight || im.height}, resized to ${nat.w}x${nat.h} to fit `
-        + `the portrait frame`;
+        + `${im.naturalHeight || im.height}, resized to ${nat.w}x${nat.h}, the `
+        + `largest the game reads without losing detail`;
     card.name = file.name;
     card.url = nat.canvas.toDataURL('image/png');
+    card.noArt = false;
     attach(card);
   };
 
@@ -1030,7 +1066,8 @@ function acceptFiles(files, slot){
 
   let n = 0;
   for (let i = 0; i < SLOTS && n < list.length; i++)
-    if (!slots[i].cards[0].url) loadInto(slots[i].cards[0], list[n++]);
+    if (!slots[i].cards[0].url && !slots[i].cards[0].noArt)
+      loadInto(slots[i].cards[0], list[n++]);
 }
 
 let pickTarget = null;
@@ -1100,22 +1137,22 @@ function scaleTo(src, w, h){
 function fitToFrame(img, sw, sh){
   const widthAt = h => Math.max(1, Math.round(sw * h / sh));
   let src = img, h = sh;
-  while (h > TARGET_H * 2){
+  while (h > MAX_H * 2){
     h = Math.round(h / 2);
     src = scaleTo(src, widthAt(h), h);
   }
-  const c = scaleTo(src, widthAt(TARGET_H), TARGET_H);
+  const c = scaleTo(src, widthAt(MAX_H), MAX_H);
   return {canvas:c, data:c.getContext('2d').getImageData(0, 0, c.width, c.height),
-          w:c.width, h:TARGET_H, scale:1, fitted:true};
+          w:c.width, h:MAX_H, scale:1, fitted:true};
 }
 
 function toNative(img){
   const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
-  if (h > TARGET_H * 16) return fitToFrame(img, w, h);
+  if (h > MAX_H * 16) return fitToFrame(img, w, h);
   const d = imageDataOf(img);
   const n = nativeScale(d);
   const nw = d.width / n, nh = d.height / n;
-  if (nh > TARGET_H) return fitToFrame(img, w, h);
+  if (nh > MAX_H) return fitToFrame(img, w, h);
   const c = document.createElement('canvas');
   c.width = nw; c.height = nh;
   const ctx = c.getContext('2d');
@@ -1135,14 +1172,15 @@ function toNative(img){
 
 function finish(d){
   const nw = d.width, nh = d.height;
-  if (nh > TARGET_H)
-    throw new Error(`image is ${nh}px tall, taller than ${TARGET_H}`);
+  if (nh > MAX_H)
+    throw new Error(`image is ${nh}px tall, taller than ${MAX_H}`);
+  const fh = Math.max(nh, TARGET_H);
   let opaque = true;
   const c = document.createElement('canvas');
-  c.width = nw; c.height = TARGET_H;
+  c.width = nw; c.height = fh;
   const ctx = c.getContext('2d');
-  const out = ctx.createImageData(nw, TARGET_H);
-  const pad = TARGET_H - nh;
+  const out = ctx.createImageData(nw, fh);
+  const pad = fh - nh;
   for (let y = 0; y < nh; y++){
     for (let x = 0; x < nw; x++){
       const si = (y*nw + (nw-1-x)) * 4;
@@ -1155,12 +1193,17 @@ function finish(d){
     }
   }
   ctx.putImageData(out, 0, 0);
-  return {canvas:c, w:nw, h:TARGET_H, opaque};
+  return {canvas:c, w:nw, h:fh, opaque};
 }
 
 function processImage(img){
   const n = toNative(img);
   return Object.assign(finish(n.data), {scale:n.scale});
+}
+
+function blankArt(){
+  return finish({width:BLANK_W, height:TARGET_H,
+                 data:new Uint8ClampedArray(BLANK_W * TARGET_H * 4)});
 }
 
 const TOML = (w,h) => `[meta_properties]
@@ -1245,7 +1288,7 @@ async function buildFiles(){
   for (const {card, trig, slot} of everyTrigger()){
     const tag = tagOf(trig);
 
-    const r = finish(imageDataOf(card.img));
+    const r = card.noArt ? blankArt() : finish(imageDataOf(card.img));
     if (r.opaque) warnings.push(`${tag} has no transparency`);
     files.push({name: `${dir}spr_farmer_portrait_${tag}.png`,
                 data: await canvasBytes(r.canvas)});
