@@ -10,8 +10,13 @@ portrait. This adds two things: a browser tool that builds the mod folder for
 you from your PNGs, and a small mod that keeps the mini-sprite's clothes in step
 with whichever portrait is on screen.
 
-> **Alpha.** Tested in game by several people, all on Windows. Back up your save
-> and expect rough edges.
+> **General idea:**  
+> When I go to the beach, I want to wear my swimsuit.  
+> When it's raining, I want to wear my raincoat.  
+> During each season, I want to have a default outfit.
+
+Still alpha, tested in game by several people, all on Windows. Back up your save
+and expect rough edges.
 
 **[Download the latest release](../../releases/latest)**: one zip, no build step.
 Unzip it and read `README.txt`; it covers the install start to finish.
